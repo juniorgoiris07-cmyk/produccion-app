@@ -1,10 +1,11 @@
 // Service Worker de "Informes de Producción"
 // Objetivo: que la app ABRA instantáneamente aunque no haya señal.
-// Importante: las llamadas a la API de Airtable NUNCA se interceptan acá
-// (deben ir siempre a la red real) — la lógica de caché de datos y cola de
-// ediciones sin conexión vive en index.html, no en el service worker.
+// Importante: las llamadas a la app web de Google Apps Script NUNCA se
+// interceptan acá (deben ir siempre a la red real) — la lógica de caché de
+// datos y cola de ediciones sin conexión vive en index.html, no en el
+// service worker.
 
-const CACHE_NAME = 'informes-produccion-v1';
+const CACHE_NAME = 'informes-produccion-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -34,8 +35,9 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
-  // Nunca tocar la API de Airtable: siempre a la red, sin caché.
-  if (url.hostname.includes('airtable.com')) return;
+  // Nunca tocar la app web de Apps Script: siempre a la red, sin caché.
+  if (url.hostname.includes('script.google.com')) return;
+  if (url.hostname.includes('script.googleusercontent.com')) return;
   if (req.method !== 'GET') return;
 
   // Estrategia "stale-while-revalidate": responde al toque con lo que ya
