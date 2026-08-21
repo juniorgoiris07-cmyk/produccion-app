@@ -226,7 +226,17 @@
   function iniciar(){
     if(!getWebAppUrl()){ mostrarPantalla('setup-screen'); return; }
     mostrarPantalla('app-screen');
+    mostrarCargandoInicial();
     recargarDatos();
+  }
+
+  // Para que la pantalla nunca se vea vacía mientras se traen los datos por
+  // primera vez (antes se veía en blanco hasta tocar "Actualizar").
+  function mostrarCargandoInicial(){
+    const cont = document.getElementById('lotes-grid');
+    if(cont && !cont.children.length){
+      cont.innerHTML = '<div class="empty-state">Cargando lotes...</div>';
+    }
   }
 
   document.getElementById('setup-form').addEventListener('submit', async function(e){
@@ -244,6 +254,7 @@
       if(!data.ok) throw new Error(data.error || 'La URL respondió pero con un error.');
       setWebAppUrl(url);
       mostrarPantalla('app-screen');
+      mostrarCargandoInicial();
       recargarDatos();
     }catch(ex){
       btn.disabled = false; btn.textContent = 'Guardar y continuar';
@@ -260,7 +271,7 @@
     document.getElementById('setup-btn').textContent = 'Guardar y continuar';
   }
 
-  async function recargarDatos(){
+  async function recargarDatos(esReintento){
     try{
       TODAS_LAS_CARGAS = await obtenerCargas();
       ULTIMA_SYNC_TS = new Date();
@@ -280,6 +291,11 @@
         aplicarEdicionesPendientesLocal();
         renderLotesGrid(TODAS_LAS_CARGAS);
         actualizarBannerConexion();
+      } else if(!esReintento){
+        // Primer intento fallido y sin caché todavía (ej. primera vez que se
+        // abre, o Google Apps Script "recién despertando"): reintenta solo,
+        // en silencio, antes de mostrarle cualquier error a la persona.
+        setTimeout(()=> recargarDatos(true), 2500);
       } else {
         showToast('No se pudieron cargar los datos: ' + ex.message, true);
       }
@@ -498,9 +514,19 @@
   }
 
   // ---------- service worker: permite abrir la app sin conexión ----------
+  // Además, cuando se publica una versión nueva, la app se actualiza sola la
+  // próxima vez que se abre (no hace falta forzar un refresco a mano).
   if('serviceWorker' in navigator){
     window.addEventListener('load', ()=>{
-      navigator.serviceWorker.register('./sw.js').catch(()=>{ /* si falla, la app sigue funcionando igual */ });
+      navigator.serviceWorker.register('./sw.js').then((reg)=>{
+        reg.update().catch(()=>{});
+      }).catch(()=>{ /* si falla, la app sigue funcionando igual */ });
+    });
+    let yaRecargo = false;
+    navigator.serviceWorker.addEventListener('controllerchange', ()=>{
+      if(yaRecargo) return;
+      yaRecargo = true;
+      window.location.reload();
     });
   }
 
