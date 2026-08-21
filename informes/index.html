@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Informes de Producción</title>
+
+<!-- ===== PWA: instalación en el celular ===== -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#2a78d6">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Informes">
+
+<style>
+  :root{
+    color-scheme: light;
+    --surface-1:      #fcfcfb;
+    --surface-2:      #f9f9f7;
+    --card:           #ffffff;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --gridline:       #e1e0d9;
+    --baseline:       #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    --series-1:       #2a78d6;
+    --series-2:       #eb6834;
+    --series-3:       #1baf7a;
+    --series-4:       #eda100;
+    --good:           #0ca30c;
+    --warning:        #fab219;
+    --critical:       #d03b3b;
+    --good-bg:        #e6f6e6;
+    --critical-bg:    #fbe9e9;
+    --warning-bg:     #fff6e0;
+    --series-1-rgb:   42,120,214;
+    --shadow-sm:      0 1px 2px rgba(20,20,15,0.05), 0 1px 4px rgba(20,20,15,0.04);
+    --shadow-md:      0 8px 24px rgba(20,20,15,0.08), 0 2px 6px rgba(20,20,15,0.05);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--surface-2);color:var(--text-primary);}
+  .app-shell{max-width:920px;margin:0 auto;min-height:100vh;background:var(--surface-1);}
+  @media(min-width:960px){
+    body{padding:28px 16px;}
+    .app-shell{min-height:0;border-radius:16px;box-shadow:var(--shadow-md);border:1px solid var(--gridline);overflow:hidden;}
+  }
+  header.appbar{padding:18px 20px 16px;border-bottom:1px solid var(--gridline);display:flex;flex-direction:column;gap:2px;}
+  header.appbar h1{font-size:18px;margin:0;font-weight:700;letter-spacing:-.01em;}
+  header.appbar p{margin:0;color:var(--text-secondary);font-size:13px;}
+  .userbar{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--gridline);font-size:13px;color:var(--text-secondary);}
+  .userbar button{border:none;background:none;color:var(--series-1);font-weight:600;font-size:13px;cursor:pointer;padding:4px 2px;transition:opacity .15s ease;}
+  .userbar button:hover{opacity:.7;}
+  .userbar .links{display:flex;gap:16px;}
+  section{padding:18px 16px 40px;}
+  .card{background:var(--card);border:1px solid var(--gridline);border-radius:14px;padding:18px;box-shadow:var(--shadow-sm);}
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;}
+  input,select,textarea{width:100%;padding:11px 12px;border:1px solid var(--border);border-radius:9px;background:var(--surface-1);color:var(--text-primary);font-size:15px;font-family:inherit;transition:border-color .15s ease, box-shadow .15s ease;}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--series-1);box-shadow:0 0 0 3px rgba(var(--series-1-rgb),0.15);}
+  .submit-btn{width:100%;padding:14px;border:none;border-radius:10px;background:var(--series-1);color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-top:6px;box-shadow:var(--shadow-sm);transition:filter .15s ease, transform .05s ease;}
+  .submit-btn:hover:not(:disabled){filter:brightness(0.94);}
+  .submit-btn:active:not(:disabled){filter:brightness(0.88);transform:translateY(1px);}
+  .submit-btn:disabled{opacity:.6;cursor:default;}
+  .error-msg{background:var(--critical-bg);color:var(--critical);border:1px solid var(--critical);border-radius:8px;padding:10px 12px;font-size:13px;margin-bottom:14px;display:none;}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--good);color:#fff;padding:12px 20px;border-radius:10px;font-size:14px;font-weight:600;opacity:0;transition:all .25s ease;pointer-events:none;z-index:50;box-shadow:0 6px 20px rgba(0,0,0,0.2);max-width:90vw;text-align:center;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  .toast.error{background:var(--critical);}
+  .toast.warn{background:#8a6300;}
+  .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+  .login-card{width:100%;max-width:360px;}
+  .login-card h1{font-size:20px;margin:0 0 4px;letter-spacing:-.01em;}
+  .login-card p{margin:0 0 20px;color:var(--text-secondary);font-size:13px;}
+  .setup-note{font-size:12px;color:var(--text-muted);line-height:1.5;background:var(--surface-2);border:1px solid var(--gridline);border-radius:8px;padding:10px 12px;margin-bottom:16px;}
+  .hidden{display:none !important;}
+
+  .kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:18px;}
+  @media(min-width:640px){.kpi-grid{grid-template-columns:repeat(4,1fr);}}
+  .kpi{background:var(--card);border:1px solid var(--gridline);border-radius:12px;padding:14px;box-shadow:var(--shadow-sm);}
+  .kpi .label{font-size:11.5px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.02em;}
+  .kpi .value{font-size:24px;font-weight:700;margin-top:4px;}
+  .field-label-inline{font-size:12.5px;font-weight:600;color:var(--text-secondary);margin-bottom:8px;}
+  .chip-group{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;}
+  .chip{padding:9px 16px;border:1px solid var(--gridline);border-radius:20px;background:var(--card);color:var(--text-secondary);font-size:13.5px;font-weight:600;cursor:pointer;box-shadow:var(--shadow-sm);transition:background-color .15s ease,color .15s ease,border-color .15s ease;}
+  .chip:hover{background:var(--surface-2);}
+  .chip.active{background:var(--series-1);border-color:var(--series-1);color:#fff;}
+  .filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;}
+  .filters select{width:auto;padding:8px 10px;font-size:13px;}
+  .filters .export-btn{margin-left:auto;padding:8px 14px;border:1px solid var(--gridline);border-radius:8px;background:var(--card);color:var(--text-primary);font-size:13px;font-weight:600;cursor:pointer;transition:background-color .15s ease, box-shadow .15s ease;box-shadow:var(--shadow-sm);}
+  .filters .export-btn:hover{background:var(--surface-2);}
+  .chart-card{background:var(--card);border:1px solid var(--gridline);border-radius:12px;padding:16px;margin-bottom:18px;box-shadow:var(--shadow-sm);}
+  .chart-card h3{margin:0 0 14px;font-size:14px;color:var(--text-secondary);}
+  .bars-daily{display:flex;align-items:flex-end;gap:6px;height:140px;border-bottom:1px solid var(--baseline);padding-bottom:2px;overflow-x:auto;}
+  .bars-daily .bar-wrap{flex:0 1 40px;min-width:22px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;cursor:pointer;}
+  .bars-daily .bar{width:70%;max-width:22px;background:var(--series-1);border-radius:4px 4px 0 0;transition:opacity .15s;}
+  .bars-daily .bar.vacio{background:var(--gridline);}
+  .bars-daily .bar-wrap:hover .bar{opacity:0.75;}
+  .bars-daily .xlabel{font-size:9.5px;color:var(--text-muted);margin-top:6px;white-space:nowrap;}
+  .tooltip{position:fixed;background:var(--text-primary);color:var(--surface-1);font-size:11.5px;padding:6px 9px;border-radius:6px;pointer-events:none;opacity:0;transition:opacity .1s;white-space:nowrap;z-index:10;font-variant-numeric:tabular-nums;}
+  .tooltip.show{opacity:1;}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  th{text-align:left;padding:8px 10px;color:var(--text-muted);font-weight:600;border-bottom:1px solid var(--gridline);white-space:nowrap;font-size:11px;text-transform:uppercase;letter-spacing:.02em;}
+  td{padding:9px 10px;border-bottom:1px solid var(--gridline);white-space:nowrap;}
+  .table-scroll{overflow-x:auto;}
+  .badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
+  .badge::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;}
+  .badge.apto{background:var(--good-bg);color:var(--good);}
+  .badge.no-apto{background:var(--critical-bg);color:var(--critical);}
+  .badge.pendiente{background:var(--warning-bg);color:#8a6300;}
+  .badge.sync-pendiente{background:var(--warning-bg);color:#8a6300;}
+  .badge.sync-error{background:var(--critical-bg);color:var(--critical);}
+  .empty-state{color:var(--text-muted);font-size:13px;padding:10px 0;}
+
+  .grid-meta{font-size:12px;color:var(--text-muted);margin:-6px 0 12px;}
+  .lotes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px;}
+  .lote-card{background:var(--card);border:1px solid var(--gridline);border-radius:10px;padding:12px;cursor:pointer;text-align:left;transition:box-shadow .15s ease,border-color .15s ease,transform .05s ease;box-shadow:var(--shadow-sm);position:relative;}
+  .lote-card:hover{border-color:var(--series-1);box-shadow:var(--shadow-md);}
+  .lote-card:active{transform:translateY(1px);}
+  .lote-card .lote-id{font-weight:700;font-size:14.5px;margin-bottom:4px;}
+  .lote-card .lote-producto{font-size:11.5px;color:var(--text-secondary);margin-bottom:8px;}
+  .lote-card .lote-ton{font-size:13px;font-weight:600;margin-bottom:2px;}
+  .lote-card .lote-fecha{font-size:11px;color:var(--text-muted);margin-bottom:8px;}
+
+  .modal-overlay{position:fixed;inset:0;background:rgba(20,20,15,0.45);display:flex;align-items:center;justify-content:center;padding:20px;z-index:60;}
+  .modal-card{background:var(--card);border-radius:14px;width:100%;max-width:420px;max-height:85vh;overflow-y:auto;padding:20px;position:relative;box-shadow:0 16px 40px rgba(20,20,15,0.22);}
+  .modal-close{position:absolute;top:12px;right:12px;border:1px solid var(--gridline);background:var(--surface-2);color:var(--text-primary);width:30px;height:30px;border-radius:50%;font-size:15px;cursor:pointer;line-height:1;transition:background-color .15s ease;}
+  .modal-close:hover{background:var(--gridline);}
+  .modal-title{font-size:17px;font-weight:700;margin:0 0 2px;padding-right:34px;letter-spacing:-.01em;}
+  .modal-subtitle{font-size:12.5px;color:var(--text-secondary);margin:0 0 16px;}
+  .modal-field{display:flex;justify-content:space-between;gap:14px;padding:9px 0;border-bottom:1px solid var(--gridline);font-size:13.5px;}
+  .modal-field:last-child{border-bottom:none;}
+  .modal-field .k{color:var(--text-muted);}
+  .modal-field .v{font-weight:600;text-align:right;}
+
+  .conn-banner{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:9px;font-size:12.5px;font-weight:600;margin-bottom:14px;}
+  .conn-banner.offline{background:var(--warning-bg);color:#8a6300;}
+  .conn-banner.pending{background:#eaf2fc;color:var(--series-1);}
+  .conn-banner .dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0;}
+</style>
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- ============ SETUP ============ -->
+  <div id="setup-screen" class="login-wrap hidden">
+    <div class="login-card card">
+      <h1>Configuración inicial</h1>
+      <p>Esto se hace una sola vez en este celular/PC.</p>
+      <div class="setup-note">
+        Necesitás un token de acceso de Airtable para esta base. Creálo en
+        <b>airtable.com/create/tokens</b> con acceso a la base "Gestión de Producción"
+        y estos permisos: <b>data.records:read</b>, <b>data.records:write</b>, <b>schema.bases:read</b>.
+        Pegalo abajo.
+      </div>
+      <div class="error-msg" id="setup-error"></div>
+      <form id="setup-form">
+        <div class="field">
+          <label>Token de acceso de Airtable</label>
+          <input type="password" id="s-token" placeholder="pat..." required>
+        </div>
+        <button type="submit" class="submit-btn">Guardar y continuar</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============ LOGIN ============ -->
+  <div id="login-screen" class="login-wrap hidden">
+    <div class="login-card card">
+      <h1>Informes de Producción</h1>
+      <p>Ingresá con tu usuario de jefe/gerencia para ver los informes.</p>
+      <div class="error-msg" id="login-error"></div>
+      <form id="login-form">
+        <div class="field">
+          <label>Usuario</label>
+          <input type="text" id="l-usuario" autocomplete="username" required>
+        </div>
+        <div class="field">
+          <label>Contraseña</label>
+          <input type="password" id="l-password" autocomplete="current-password" required>
+        </div>
+        <button type="submit" class="submit-btn" id="login-btn">Ingresar</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============ APP ============ -->
+  <div id="app-screen" class="hidden">
+    <header class="appbar">
+      <h1>Informes de Producción</h1>
+      <p>Vista general de las cargas registradas en planta</p>
+    </header>
+    <div class="userbar">
+      <span id="user-label"></span>
+      <div class="links">
+        <button onclick="resetToken()">Configuración</button>
+        <button onclick="cerrarSesion()">Cerrar sesión</button>
+      </div>
+    </div>
+
+    <section>
+      <div id="conn-banner" class="conn-banner hidden"></div>
+
+      <div class="kpi-grid">
+        <div class="kpi"><div class="label">Toneladas hoy</div><div class="value" id="kpi-hoy">–</div></div>
+        <div class="kpi"><div class="label">Toneladas del mes</div><div class="value" id="kpi-mes">–</div></div>
+        <div class="kpi"><div class="label">Cargas registradas</div><div class="value" id="kpi-cargas">–</div></div>
+      </div>
+
+      <div class="field-label-inline">Producto</div>
+      <div class="chip-group" id="filtro-producto-chips"></div>
+
+      <div class="filters">
+        <select id="filtro-rango" onchange="aplicarFiltros()">
+          <option value="7">Últimos 7 días</option>
+          <option value="14" selected>Últimos 14 días</option>
+          <option value="30">Últimos 30 días</option>
+          <option value="9999">Todo</option>
+        </select>
+        <button class="export-btn" onclick="recargarDatos()">Actualizar</button>
+        <button class="export-btn" onclick="exportCSV()">Exportar CSV</button>
+      </div>
+
+      <div class="chart-card">
+        <h3>Toneladas cargadas por día</h3>
+        <div class="bars-daily" id="bars-daily"></div>
+      </div>
+
+      <div class="chart-card">
+        <h3>Lotes procesados</h3>
+        <div class="grid-meta" id="lotes-meta"></div>
+        <div class="lotes-grid" id="lotes-grid"></div>
+      </div>
+    </section>
+  </div>
+
+</div>
+<div class="tooltip" id="tooltip"></div>
+<div class="toast" id="toast"></div>
+
+<div class="modal-overlay hidden" id="lote-modal" onclick="if(event.target===this) cerrarModal()">
+  <div class="modal-card">
+    <button class="modal-close" onclick="cerrarModal()">✕</button>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+  const BASE_ID = 'appENkOhah5ZFaTCj';
+  const TABLE_CARGAS = 'Cargas';
+  const TABLE_USUARIOS = 'Usuarios';
+  let SESSION = null;
+  let TODAS_LAS_CARGAS = [];
+  let PRODUCTOS_CONFIG = [];
+  let MICRO_CONFIG = [];
+  let PRODUCTO_SELECCIONADO = '';
+  let ULTIMA_SYNC_TS = null; // cuándo se trajeron datos frescos de Airtable por última vez
+
+  // ---------- almacenamiento local ----------
+  const CONFIG_CACHE_KEY = 'gp_config_cache';
+  const DATA_CACHE_KEY   = 'gp_informes_cache';   // último dashboard visto (para modo offline)
+  const PENDING_KEY      = 'gp_pending_ediciones'; // ediciones de Micro/Obs sin sincronizar
+
+  // Nota: el token de Airtable se comparte con la app de Carga si están
+  // instaladas en el mismo dominio (misma clave 'gp_token'). La sesión de
+  // usuario usa una clave propia de esta app ('gp_session_jefe') para que
+  // nunca se mezcle con la sesión de un operario en el mismo dispositivo.
+  function getToken(){ return localStorage.getItem('gp_token'); }
+  function setToken(t){ localStorage.setItem('gp_token', t); }
+  function clearToken(){ localStorage.removeItem('gp_token'); }
+  function getSession(){ try { return JSON.parse(localStorage.getItem('gp_session_jefe')); } catch(e){ return null; } }
+  function setSession(s){ localStorage.setItem('gp_session_jefe', JSON.stringify(s)); }
+  function clearSession(){ localStorage.removeItem('gp_session_jefe'); }
+
+  function getPendientes(){ try { return JSON.parse(localStorage.getItem(PENDING_KEY)) || []; } catch(e){ return []; } }
+  function setPendientes(list){ localStorage.setItem(PENDING_KEY, JSON.stringify(list)); }
+
+  function esErrorDeRed(ex){
+    if(!navigator.onLine) return true;
+    if(ex instanceof TypeError) return true;
+    if(ex && /failed to fetch|network|load failed/i.test(ex.message||'')) return true;
+    return false;
+  }
+
+  async function airtableFetch(path, options={}){
+    const token = getToken();
+    const res = await fetch(`https://api.airtable.com/v0/${BASE_ID}${path}`, {
+      ...options,
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        ...(options.headers||{})
+      }
+    });
+    if(!res.ok){
+      const err = await res.json().catch(()=>({}));
+      throw new Error((err.error && err.error.message) ? err.error.message : `Error ${res.status}`);
+    }
+    return res.json();
+  }
+  function escapeFormula(s){ return String(s).replace(/'/g, "\\'"); }
+
+  async function actualizarCarga(id, fields){
+    return airtableFetch(`/${TABLE_CARGAS}/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({fields})
+    });
+  }
+
+  async function login(usuario, password, rolEsperado){
+    const formula = `AND({Usuario}='${escapeFormula(usuario)}',{Password}='${escapeFormula(password)}')`;
+    const data = await airtableFetch(`/${TABLE_USUARIOS}?filterByFormula=${encodeURIComponent(formula)}`);
+    if(!data.records.length) return {ok:false, error:'Usuario o contraseña incorrectos.'};
+    const rec = data.records[0];
+    const rol = (rec.fields.Rol||'').toLowerCase().trim();
+    if(rolEsperado && rol !== rolEsperado) return {ok:false, error:'Este usuario no tiene acceso a esta sección.'};
+    return {ok:true, rol, nombre: rec.fields.Nombre || usuario, usuario};
+  }
+
+  async function obtenerConfig(){
+    const token = getToken();
+    const res = await fetch(`https://api.airtable.com/v0/meta/bases/${BASE_ID}/tables`, {
+      headers: {'Authorization': `Bearer ${token}`}
+    });
+    if(!res.ok) throw new Error('No se pudo cargar la configuración.');
+    const data = await res.json();
+    const tabla = data.tables.find(t=>t.name===TABLE_CARGAS);
+    const choices = (fieldName) => {
+      const f = tabla.fields.find(f=>f.name===fieldName);
+      return (f && f.options && f.options.choices) ? f.options.choices.map(c=>c.name) : [];
+    };
+    return { Productos: choices('Producto'), Turnos: choices('Turno'), MicroResultados: choices('Micro') };
+  }
+
+  async function obtenerCargas(){
+    let all = [];
+    let offset = null;
+    do {
+      const qs = new URLSearchParams({pageSize:'100'});
+      if(offset) qs.set('offset', offset);
+      const data = await airtableFetch(`/${TABLE_CARGAS}?${qs.toString()}`);
+      all = all.concat(data.records);
+      offset = data.offset;
+    } while(offset);
+    return all.map(r=>({
+      id: r.id,
+      fecha: r.fields.Fecha || '',
+      hora: r.fields.Hora || '',
+      turno: r.fields.Turno || '',
+      producto: r.fields.Producto || '',
+      lote: r.fields.Lote || '',
+      toneladas: r.fields.Toneladas || 0,
+      pureza: r.fields.Pureza || 0,
+      humedad: (r.fields.Humedad === undefined) ? null : r.fields.Humedad,
+      micro: r.fields.Micro || '',
+      operador: r.fields.Operador || '',
+      obs: r.fields.Observaciones || ''
+    }));
+  }
+
+  // ---------- flujo de pantallas ----------
+  function mostrarPantalla(id){
+    ['setup-screen','login-screen','app-screen'].forEach(x=>{
+      document.getElementById(x).classList.toggle('hidden', x!==id);
+    });
+  }
+
+  function iniciar(){
+    if(!getToken()){ mostrarPantalla('setup-screen'); return; }
+    const s = getSession();
+    if(s && s.rol === 'jefe'){
+      SESSION = s;
+      document.getElementById('user-label').textContent = s.nombre;
+      mostrarPantalla('app-screen');
+      cargarConfigYDatos();
+    } else {
+      mostrarPantalla('login-screen');
+    }
+  }
+
+  document.getElementById('setup-form').addEventListener('submit', function(e){
+    e.preventDefault();
+    const token = document.getElementById('s-token').value.trim();
+    if(!token){ return; }
+    setToken(token);
+    mostrarPantalla('login-screen');
+  });
+
+  function resetToken(){
+    clearToken();
+    clearSession();
+    mostrarPantalla('setup-screen');
+  }
+
+  document.getElementById('login-form').addEventListener('submit', async function(e){
+    e.preventDefault();
+    const btn = document.getElementById('login-btn');
+    const err = document.getElementById('login-error');
+    err.style.display = 'none';
+    btn.disabled = true; btn.textContent = 'Ingresando...';
+    const usuario = document.getElementById('l-usuario').value;
+    const password = document.getElementById('l-password').value;
+    try{
+      const res = await login(usuario, password, 'jefe');
+      btn.disabled = false; btn.textContent = 'Ingresar';
+      if(!res.ok){ err.textContent = res.error; err.style.display = 'block'; return; }
+      SESSION = res;
+      setSession(res);
+      document.getElementById('user-label').textContent = res.nombre;
+      mostrarPantalla('app-screen');
+      cargarConfigYDatos();
+    }catch(ex){
+      btn.disabled = false; btn.textContent = 'Ingresar';
+      if(esErrorDeRed(ex)){
+        err.textContent = 'No hay conexión a internet. Para ingresar por primera vez en este teléfono se necesita señal.';
+      } else {
+        err.textContent = 'Error de conexión: ' + ex.message;
+      }
+      err.style.display = 'block';
+    }
+  });
+
+  function cerrarSesion(){
+    clearSession();
+    SESSION = null;
+    mostrarPantalla('login-screen');
+  }
+
+  async function cargarConfigYDatos(){
+    try{
+      const config = await obtenerConfig();
+      localStorage.setItem(CONFIG_CACHE_KEY, JSON.stringify(config));
+      PRODUCTOS_CONFIG = config.Productos || [];
+      MICRO_CONFIG = config.MicroResultados || [];
+      renderChipsProducto();
+    }catch(ex){
+      const cache = localStorage.getItem(CONFIG_CACHE_KEY);
+      if(cache && esErrorDeRed(ex)){
+        const config = JSON.parse(cache);
+        PRODUCTOS_CONFIG = config.Productos || [];
+        MICRO_CONFIG = config.MicroResultados || [];
+        renderChipsProducto();
+      } else {
+        showToast('No se pudo cargar la configuración: ' + ex.message, true);
+      }
+    }
+    await recargarDatos();
+  }
+
+  function renderChipsProducto(){
+    const cont = document.getElementById('filtro-producto-chips');
+    cont.innerHTML = '';
+    const opciones = ['', ...PRODUCTOS_CONFIG];
+    opciones.forEach(p=>{
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'chip' + (p === PRODUCTO_SELECCIONADO ? ' active' : '');
+      btn.textContent = p || 'Todos';
+      btn.addEventListener('click', ()=>{
+        PRODUCTO_SELECCIONADO = p;
+        renderChipsProducto();
+        aplicarFiltros();
+      });
+      cont.appendChild(btn);
+    });
+  }
+
+  async function recargarDatos(){
+    try{
+      TODAS_LAS_CARGAS = await obtenerCargas();
+      ULTIMA_SYNC_TS = new Date();
+      localStorage.setItem(DATA_CACHE_KEY, JSON.stringify({ cargas: TODAS_LAS_CARGAS, ts: ULTIMA_SYNC_TS.toISOString() }));
+      // Por si quedó alguna edición sin subir de una sesión offline anterior,
+      // se refleja en pantalla aunque los datos frescos todavía no la tengan.
+      aplicarEdicionesPendientesLocal();
+      aplicarFiltros();
+      actualizarBannerConexion();
+      await sincronizarPendientes(true);
+    }catch(ex){
+      const cacheRaw = localStorage.getItem(DATA_CACHE_KEY);
+      if(cacheRaw && esErrorDeRed(ex)){
+        const cache = JSON.parse(cacheRaw);
+        TODAS_LAS_CARGAS = cache.cargas || [];
+        ULTIMA_SYNC_TS = cache.ts ? new Date(cache.ts) : null;
+        aplicarEdicionesPendientesLocal();
+        aplicarFiltros();
+        actualizarBannerConexion();
+      } else {
+        showToast('No se pudieron cargar los datos: ' + ex.message, true);
+      }
+    }
+  }
+
+  // Para que el dashboard offline refleje también los cambios que el jefe
+  // hizo mientras no había señal (y que todavía no se subieron).
+  function aplicarEdicionesPendientesLocal(){
+    const pendientes = getPendientes();
+    pendientes.forEach(p=>{
+      const c = TODAS_LAS_CARGAS.find(x=>x.id===p.id);
+      if(c){ c.micro = p.fields.Micro; c.obs = p.fields.Observaciones; }
+    });
+  }
+
+  function aplicarFiltros(){
+    const prod = PRODUCTO_SELECCIONADO;
+    const dias = parseInt(document.getElementById('filtro-rango').value, 10);
+    const limite = new Date();
+    limite.setDate(limite.getDate() - dias);
+    const limiteStr = limite.toISOString().slice(0,10);
+
+    const datos = TODAS_LAS_CARGAS.filter(c=>{
+      if(prod && c.producto !== prod) return false;
+      return c.fecha >= limiteStr;
+    });
+    renderTodo(datos);
+  }
+
+  function renderTodo(datos){
+    const hoy = hoyISO();
+    const mesActual = hoy.slice(0,7);
+    // Toneladas hoy/mes respetan el producto elegido con los chips, pero no
+    // el rango de fechas (siempre son "hoy" y "este mes", tal cual).
+    const baseProducto = PRODUCTO_SELECCIONADO
+      ? TODAS_LAS_CARGAS.filter(c=>c.producto===PRODUCTO_SELECCIONADO)
+      : TODAS_LAS_CARGAS;
+
+    const tonHoy = baseProducto.filter(c=>c.fecha===hoy).reduce((s,c)=>s+c.toneladas,0);
+    const tonMes = baseProducto.filter(c=>c.fecha.slice(0,7)===mesActual).reduce((s,c)=>s+c.toneladas,0);
+
+    document.getElementById('kpi-hoy').textContent = tonHoy.toFixed(1)+' tn';
+    document.getElementById('kpi-mes').textContent = tonMes.toFixed(1)+' tn';
+    document.getElementById('kpi-cargas').textContent = datos.length;
+
+    renderBarrasDiarias(datos);
+    renderLotesGrid(datos);
+  }
+
+  function renderBarrasDiarias(datos){
+    const cont = document.getElementById('bars-daily');
+    cont.innerHTML = '';
+    const porDia = {};
+    datos.forEach(c=>{ porDia[c.fecha] = (porDia[c.fecha]||0) + c.toneladas; });
+
+    // Con un rango fijo (7/14/30 días) se completa el calendario entero,
+    // incluidos los días sin cargas, para que el gráfico se lea como una
+    // línea de tiempo continua en vez de barras sueltas con huecos raros.
+    const diasFiltro = parseInt(document.getElementById('filtro-rango').value, 10);
+    let dias;
+    if(diasFiltro < 999){
+      dias = [];
+      for(let i = diasFiltro - 1; i >= 0; i--){
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        dias.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'));
+      }
+    } else {
+      dias = Object.keys(porDia).filter(Boolean).sort();
+    }
+
+    if(dias.length===0){ cont.innerHTML = '<div class="empty-state">Sin datos en el rango seleccionado.</div>'; return; }
+    const max = Math.max(...dias.map(d=>porDia[d]||0), 1);
+
+    dias.forEach(d=>{
+      const val = porDia[d] || 0;
+      const wrap = document.createElement('div');
+      wrap.className = 'bar-wrap';
+      const bar = document.createElement('div');
+      bar.className = 'bar' + (val===0 ? ' vacio' : '');
+      bar.style.height = val>0 ? Math.max(4, (val/max)*100) + '%' : '2px';
+      const label = document.createElement('div');
+      label.className = 'xlabel';
+      const partes = d.split('-');
+      label.textContent = partes[2] + '/' + partes[1];
+      wrap.appendChild(bar); wrap.appendChild(label);
+      wrap.addEventListener('mousemove', (e)=>showTooltip(e, `${label.textContent}: ${val.toFixed(1)} tn`));
+      wrap.addEventListener('mouseleave', hideTooltip);
+      cont.appendChild(wrap);
+    });
+  }
+
+  // Nota: acá se muestran TODOS los lotes del rango filtrado, sin importar el
+  // resultado de Micro (Apto, No apto, Pendiente o cualquier otro estado que
+  // se cargue) — solo se filtra por producto y por rango de fechas arriba.
+  function microBadgeClass(micro){
+    return micro==='Apto' ? 'apto' : (micro==='No apto' ? 'no-apto' : 'pendiente');
+  }
+
+  function tieneEdicionPendiente(id){
+    return getPendientes().some(p=>p.id===id);
+  }
+
+  function renderLotesGrid(datos){
+    const cont = document.getElementById('lotes-grid');
+    const meta = document.getElementById('lotes-meta');
+    cont.innerHTML = '';
+    const ordenado = [...datos].sort((a,b)=> (b.fecha+b.hora).localeCompare(a.fecha+a.hora));
+    meta.textContent = ordenado.length + ' lote(s) en el rango seleccionado. Tocá uno para ver el detalle completo.';
+    if(ordenado.length===0){
+      cont.innerHTML = '<div class="empty-state">Sin cargas registradas en el rango seleccionado.</div>';
+      return;
+    }
+    ordenado.forEach(c=>{
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'lote-card';
+      const pendiente = tieneEdicionPendiente(c.id);
+      card.innerHTML = `<div class="lote-id">${c.lote || 'Sin N° de lote'}</div>
+        <div class="lote-producto">${c.producto}</div>
+        <div class="lote-ton">${c.toneladas.toFixed(1)} tn</div>
+        <div class="lote-fecha">${c.fecha} · ${c.hora}</div>
+        <span class="badge ${microBadgeClass(c.micro)}">${c.micro || 'Sin dato'}</span>
+        ${pendiente ? '<div style="margin-top:6px;"><span class="badge sync-pendiente">Edición sin subir</span></div>' : ''}`;
+      card.addEventListener('click', ()=> abrirModal(c));
+      cont.appendChild(card);
+    });
+  }
+
+  function abrirModal(c){
+    const body = document.getElementById('modal-body');
+    const campo = (k,v) => `<div class="modal-field"><span class="k">${k}</span><span class="v">${v}</span></div>`;
+    const pendiente = tieneEdicionPendiente(c.id);
+    body.innerHTML = `
+      <div class="modal-title">Lote ${c.lote || 'Sin N° de lote'}</div>
+      <div class="modal-subtitle">${c.producto}</div>
+      ${pendiente ? '<div class="error-msg" style="display:block;background:var(--warning-bg);color:#8a6300;border-color:#8a6300;">Este cambio todavía no se subió a Airtable — se subirá solo cuando haya conexión.</div>' : ''}
+      ${campo('Fecha', c.fecha || '—')}
+      ${campo('Hora', c.hora || '—')}
+      ${campo('Turno', c.turno || '—')}
+      ${campo('Toneladas', c.toneladas.toFixed(1)+' tn')}
+      ${campo('Pureza', c.pureza.toFixed(1)+'%')}
+      ${campo('Humedad', c.humedad!=null ? c.humedad.toFixed(1)+'%' : '—')}
+      ${campo('Resultado Micro', `<span class="badge ${microBadgeClass(c.micro)}">${c.micro || 'Sin dato'}</span>`)}
+      ${campo('Operador', c.operador || '—')}
+      ${campo('Observaciones', c.obs || '—')}
+      <button type="button" class="submit-btn" id="edit-micro-btn" style="margin-top:14px;">Editar resultado / observaciones</button>
+    `;
+    const editBtn = document.getElementById('edit-micro-btn');
+    if(c.id){
+      editBtn.addEventListener('click', ()=> activarEdicionMicro(c));
+    } else {
+      editBtn.disabled = true;
+      editBtn.title = 'No se puede editar: falta el identificador del registro.';
+    }
+    document.getElementById('lote-modal').classList.remove('hidden');
+  }
+
+  function activarEdicionMicro(c){
+    const body = document.getElementById('modal-body');
+    const opciones = (MICRO_CONFIG.length ? MICRO_CONFIG : ['Apto','No apto','Pendiente'])
+      .map(o=>`<option value="${o}" ${o===c.micro?'selected':''}>${o}</option>`).join('');
+    body.innerHTML = `
+      <div class="modal-title">Editar Lote ${c.lote || 'Sin N° de lote'}</div>
+      <div class="modal-subtitle">${c.producto}</div>
+      <div class="field">
+        <label>Resultado Micro</label>
+        <select id="edit-micro">${opciones}</select>
+      </div>
+      <div class="field">
+        <label>Observaciones</label>
+        <textarea id="edit-obs" rows="3"></textarea>
+      </div>
+      <div class="error-msg" id="edit-error"></div>
+      <button type="button" class="submit-btn" id="edit-save-btn">Guardar cambios</button>
+      <button type="button" class="submit-btn" id="edit-cancel-btn" style="background:var(--surface-2);color:var(--text-primary);margin-top:8px;">Cancelar</button>
+    `;
+    document.getElementById('edit-obs').value = c.obs || '';
+    document.getElementById('edit-save-btn').addEventListener('click', ()=> guardarEdicionMicro(c));
+    document.getElementById('edit-cancel-btn').addEventListener('click', ()=> abrirModal(c));
+  }
+
+  async function guardarEdicionMicro(c){
+    const btn = document.getElementById('edit-save-btn');
+    const err = document.getElementById('edit-error');
+    err.style.display = 'none';
+    const nuevoMicro = document.getElementById('edit-micro').value;
+    const nuevaObs = document.getElementById('edit-obs').value;
+    btn.disabled = true; btn.textContent = 'Guardando...';
+    const fields = {Micro: nuevoMicro, Observaciones: nuevaObs};
+    try{
+      await actualizarCarga(c.id, fields);
+      c.micro = nuevoMicro;
+      c.obs = nuevaObs;
+      cerrarModal();
+      aplicarFiltros();
+      showToast('Resultado actualizado');
+    }catch(ex){
+      if(esErrorDeRed(ex)){
+        // Sin conexión: el cambio se guarda en el teléfono y se aplica ya
+        // mismo en la pantalla; se sube solo cuando vuelva la señal.
+        encolarEdicion(c.id, fields);
+        c.micro = nuevoMicro;
+        c.obs = nuevaObs;
+        cerrarModal();
+        aplicarFiltros();
+        actualizarBannerConexion();
+        showToast('Sin conexión: el cambio quedó guardado y se subirá solo cuando vuelva internet', false, true);
+      } else {
+        btn.disabled = false; btn.textContent = 'Guardar cambios';
+        err.textContent = 'No se pudo guardar: ' + ex.message;
+        err.style.display = 'block';
+      }
+    }
+  }
+
+  // ---------- cola offline de ediciones: nunca se pierde un cambio ----------
+  function encolarEdicion(id, fields){
+    const pendientes = getPendientes().filter(p=>p.id!==id); // si ya había una edición pendiente para el mismo lote, se reemplaza por la más nueva
+    pendientes.push({ id, fields, estado:'pendiente', errorMsg:'', creadoEn: new Date().toISOString() });
+    setPendientes(pendientes);
+  }
+
+  let flushEdicionesEnCurso = false;
+  async function sincronizarPendientes(silencioso){
+    if(flushEdicionesEnCurso) return;
+    const pendientes = getPendientes();
+    if(!pendientes.length) return;
+    flushEdicionesEnCurso = true;
+
+    let subieron = 0;
+    let cortarPorRed = false;
+    const restantes = [];
+
+    for(const item of pendientes){
+      if(cortarPorRed){ restantes.push(item); continue; }
+      try{
+        await actualizarCarga(item.id, item.fields);
+        subieron++;
+      }catch(ex){
+        if(esErrorDeRed(ex)){
+          cortarPorRed = true;
+          restantes.push(item);
+        } else {
+          item.estado = 'error';
+          item.errorMsg = ex.message || 'Error desconocido';
+          restantes.push(item);
+        }
+      }
+    }
+
+    setPendientes(restantes);
+    flushEdicionesEnCurso = false;
+    if(subieron > 0){
+      aplicarFiltros();
+      actualizarBannerConexion();
+      if(!silencioso) showToast(subieron === 1 ? 'Se sincronizó 1 edición pendiente' : `Se sincronizaron ${subieron} ediciones pendientes`);
+    }
+  }
+
+  function actualizarBannerConexion(){
+    const banner = document.getElementById('conn-banner');
+    const pendientes = getPendientes();
+    if(!navigator.onLine){
+      const desde = ULTIMA_SYNC_TS ? ` · datos de ${ULTIMA_SYNC_TS.toLocaleString('es-AR', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}` : '';
+      banner.className = 'conn-banner offline';
+      banner.innerHTML = `<span class="dot"></span> Sin conexión — mostrando últimos datos guardados${desde}${pendientes.length ? ' · ' + pendientes.length + ' edición(es) pendiente(s) de subir' : ''}`;
+      banner.classList.remove('hidden');
+    } else if(pendientes.length){
+      banner.className = 'conn-banner pending';
+      banner.innerHTML = `<span class="dot"></span> Sincronizando ${pendientes.length} edición(es) pendiente(s)...`;
+      banner.classList.remove('hidden');
+    } else {
+      banner.classList.add('hidden');
+    }
+  }
+
+  window.addEventListener('online', ()=>{ actualizarBannerConexion(); sincronizarPendientes().then(recargarDatos); });
+  window.addEventListener('offline', actualizarBannerConexion);
+  setInterval(()=>{ if(navigator.onLine){ sincronizarPendientes(true); } actualizarBannerConexion(); }, 30000);
+
+  function cerrarModal(){
+    document.getElementById('lote-modal').classList.add('hidden');
+  }
+
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape') cerrarModal();
+  });
+
+  function showTooltip(e, text){
+    const tip = document.getElementById('tooltip');
+    tip.textContent = text;
+    tip.classList.add('show');
+    tip.style.left = (e.clientX+12)+'px';
+    tip.style.top = (e.clientY-28)+'px';
+  }
+  function hideTooltip(){ document.getElementById('tooltip').classList.remove('show'); }
+
+  function hoyISO(){
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+
+  function exportCSV(){
+    const prod = PRODUCTO_SELECCIONADO;
+    const datos = TODAS_LAS_CARGAS.filter(c=> !prod || c.producto===prod);
+    const header = ['Fecha','Hora','Turno','Producto','Lote','Toneladas','Pureza(%)','Humedad(%)','Micro','Operador','Observaciones'];
+    const rows = datos.map(c=>[c.fecha,c.hora,c.turno,c.producto,c.lote,c.toneladas,c.pureza,(c.humedad!=null?c.humedad:''),c.micro,c.operador,c.obs].join(';'));
+    const csv = [header.join(';'), ...rows].join('\n');
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'informe_produccion.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function showToast(msg, isError, isWarn){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (isError ? ' error' : (isWarn ? ' warn' : ''));
+    setTimeout(()=>t.classList.remove('show'), isWarn ? 4000 : 2500);
+  }
+
+  // ---------- service worker: permite abrir la app sin conexión ----------
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', ()=>{
+      navigator.serviceWorker.register('./sw.js').catch(()=>{ /* si falla, la app sigue funcionando igual */ });
+    });
+  }
+
+  iniciar();
+</script>
+</body>
+</html>
