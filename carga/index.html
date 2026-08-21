@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Carga de Producción</title>
+
+<!-- ===== PWA: instalación en el celular ===== -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#2a78d6">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Carga">
+
+<style>
+  :root{
+    color-scheme: light;
+    --surface-1:      #fcfcfb;
+    --surface-2:      #f9f9f7;
+    --card:           #ffffff;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --gridline:       #e1e0d9;
+    --baseline:       #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    --series-1:       #2a78d6;
+    --series-2:       #eb6834;
+    --series-3:       #1baf7a;
+    --series-4:       #eda100;
+    --good:           #0ca30c;
+    --warning:        #fab219;
+    --critical:       #d03b3b;
+    --good-bg:        #e6f6e6;
+    --critical-bg:    #fbe9e9;
+    --warning-bg:     #fff6e0;
+    --series-1-rgb:   42,120,214;
+    --shadow-sm:      0 1px 2px rgba(20,20,15,0.05), 0 1px 4px rgba(20,20,15,0.04);
+    --shadow-md:      0 8px 24px rgba(20,20,15,0.08), 0 2px 6px rgba(20,20,15,0.05);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--surface-2);color:var(--text-primary);}
+  .app-shell{max-width:520px;margin:0 auto;min-height:100vh;background:var(--surface-1);}
+  @media(min-width:700px){
+    body{padding:28px 16px;}
+    .app-shell{min-height:0;border-radius:16px;box-shadow:var(--shadow-md);border:1px solid var(--gridline);overflow:hidden;}
+  }
+  header.appbar{padding:18px 20px 16px;border-bottom:1px solid var(--gridline);display:flex;flex-direction:column;gap:2px;}
+  header.appbar h1{font-size:18px;margin:0;font-weight:700;letter-spacing:-.01em;}
+  header.appbar p{margin:0;color:var(--text-secondary);font-size:13px;}
+  .userbar{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--gridline);font-size:13px;color:var(--text-secondary);}
+  .userbar button{border:none;background:none;color:var(--series-1);font-weight:600;font-size:13px;cursor:pointer;padding:4px 2px;transition:opacity .15s ease;}
+  .userbar button:hover{opacity:.7;}
+  .userbar .links{display:flex;gap:16px;}
+  section{padding:18px 16px 40px;}
+  .card{background:var(--card);border:1px solid var(--gridline);border-radius:14px;padding:18px;box-shadow:var(--shadow-sm);}
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;}
+  .field .hint{font-size:11px;color:var(--text-muted);margin-top:4px;}
+  input,select,textarea{width:100%;padding:11px 12px;border:1px solid var(--border);border-radius:9px;background:var(--surface-1);color:var(--text-primary);font-size:15px;font-family:inherit;transition:border-color .15s ease, box-shadow .15s ease;}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--series-1);box-shadow:0 0 0 3px rgba(var(--series-1-rgb),0.15);}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .submit-btn{width:100%;padding:14px;border:none;border-radius:10px;background:var(--series-1);color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-top:6px;box-shadow:var(--shadow-sm);transition:filter .15s ease, transform .05s ease;}
+  .submit-btn:hover:not(:disabled){filter:brightness(0.94);}
+  .submit-btn:active:not(:disabled){filter:brightness(0.88);transform:translateY(1px);}
+  .submit-btn:disabled{opacity:.6;cursor:default;}
+  .error-msg{background:var(--critical-bg);color:var(--critical);border:1px solid var(--critical);border-radius:8px;padding:10px 12px;font-size:13px;margin-bottom:14px;display:none;}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--good);color:#fff;padding:12px 20px;border-radius:10px;font-size:14px;font-weight:600;opacity:0;transition:all .25s ease;pointer-events:none;z-index:50;box-shadow:0 6px 20px rgba(0,0,0,0.2);max-width:90vw;text-align:center;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  .toast.error{background:var(--critical);}
+  .toast.warn{background:#8a6300;}
+  .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+  .login-card{width:100%;max-width:360px;}
+  .login-card h1{font-size:20px;margin:0 0 4px;letter-spacing:-.01em;}
+  .login-card p{margin:0 0 20px;color:var(--text-secondary);font-size:13px;}
+  .setup-note{font-size:12px;color:var(--text-muted);line-height:1.5;background:var(--surface-2);border:1px solid var(--gridline);border-radius:8px;padding:10px 12px;margin-bottom:16px;}
+  .hidden{display:none !important;}
+
+  .badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
+  .badge::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;}
+  .badge.apto{background:var(--good-bg);color:var(--good);}
+  .badge.no-apto{background:var(--critical-bg);color:var(--critical);}
+  .badge.pendiente{background:var(--warning-bg);color:#8a6300;}
+  .badge.sync-pendiente{background:var(--warning-bg);color:#8a6300;}
+  .badge.sync-error{background:var(--critical-bg);color:var(--critical);}
+  .empty-state{color:var(--text-muted);font-size:13px;padding:6px 0;}
+  .mini-item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--gridline);}
+  .mini-item:last-child{border-bottom:none;}
+  .mini-item .left{min-width:0;}
+  .mini-item .lote{font-weight:700;font-size:13.5px;}
+  .mini-item .meta{font-size:11.5px;color:var(--text-muted);margin-top:2px;}
+  .mini-item .right{text-align:right;flex-shrink:0;}
+  .mini-item .ton{font-size:13px;font-weight:600;margin-bottom:4px;}
+
+  .conn-banner{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:9px;font-size:12.5px;font-weight:600;margin-bottom:14px;}
+  .conn-banner.offline{background:var(--warning-bg);color:#8a6300;}
+  .conn-banner.pending{background:#eaf2fc;color:var(--series-1);}
+  .conn-banner .dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0;}
+</style>
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- ============ SETUP (primera vez: pedir token de Airtable) ============ -->
+  <div id="setup-screen" class="login-wrap hidden">
+    <div class="login-card card">
+      <h1>Configuración inicial</h1>
+      <p>Esto se hace una sola vez en este celular/PC.</p>
+      <div class="setup-note">
+        Necesitás un token de acceso de Airtable para esta base. Creálo en
+        <b>airtable.com/create/tokens</b> con acceso a la base "Gestión de Producción"
+        y estos permisos: <b>data.records:read</b>, <b>data.records:write</b>, <b>schema.bases:read</b>.
+        Pegalo abajo.
+      </div>
+      <div class="error-msg" id="setup-error"></div>
+      <form id="setup-form">
+        <div class="field">
+          <label>Token de acceso de Airtable</label>
+          <input type="password" id="s-token" placeholder="pat..." required>
+        </div>
+        <button type="submit" class="submit-btn">Guardar y continuar</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============ LOGIN ============ -->
+  <div id="login-screen" class="login-wrap hidden">
+    <div class="login-card card">
+      <h1>Carga de Producción</h1>
+      <p>Ingresá con tu usuario de operario para registrar cargas.</p>
+      <div class="error-msg" id="login-error"></div>
+      <form id="login-form">
+        <div class="field">
+          <label>Usuario</label>
+          <input type="text" id="l-usuario" autocomplete="username" required>
+        </div>
+        <div class="field">
+          <label>Contraseña</label>
+          <input type="password" id="l-password" autocomplete="current-password" required>
+        </div>
+        <button type="submit" class="submit-btn" id="login-btn">Ingresar</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============ APP ============ -->
+  <div id="app-screen" class="hidden">
+    <header class="appbar">
+      <h1>Carga de Producción</h1>
+      <p>Registrá cada carga de producto terminado</p>
+    </header>
+    <div class="userbar">
+      <span id="user-label"></span>
+      <div class="links">
+        <button onclick="resetToken()">Configuración</button>
+        <button onclick="cerrarSesion()">Cerrar sesión</button>
+      </div>
+    </div>
+
+    <section>
+      <div id="conn-banner" class="conn-banner hidden"></div>
+
+      <div class="card">
+        <div class="error-msg" id="form-error"></div>
+        <form id="carga-form">
+          <div class="field">
+            <label>Producto</label>
+            <select id="f-producto" required></select>
+          </div>
+
+          <div class="row2">
+            <div class="field">
+              <label>Fecha</label>
+              <input type="date" id="f-fecha" required>
+            </div>
+            <div class="field">
+              <label>Hora</label>
+              <input type="time" id="f-hora" required>
+            </div>
+          </div>
+
+          <div class="row2">
+            <div class="field">
+              <label>Turno</label>
+              <select id="f-turno"></select>
+            </div>
+            <div class="field">
+              <label>N° de Lote</label>
+              <input type="text" id="f-lote" placeholder="Ej: L-0231" required>
+              <div class="hint">Se sugiere automáticamente a partir del último lote cargado — revisalo antes de guardar.</div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Toneladas cargadas</label>
+            <input type="number" id="f-toneladas" step="0.1" min="0.1" value="25" required>
+            <div class="hint">Se informa cada 25 tn de producto terminado</div>
+          </div>
+
+          <div class="row2">
+            <div class="field">
+              <label>Pureza (%)</label>
+              <input type="number" id="f-pureza" step="0.1" min="0" max="100" placeholder="Ej: 98.5" required>
+            </div>
+            <div class="field">
+              <label>Humedad (%)</label>
+              <input type="number" id="f-humedad" step="0.1" min="0" max="100" placeholder="Ej: 11.2">
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Resultado Micro</label>
+            <select id="f-micro" required></select>
+          </div>
+
+          <div class="field">
+            <label>Observaciones (opcional)</label>
+            <textarea id="f-obs" rows="2" placeholder="Notas, incidencias, etc."></textarea>
+          </div>
+
+          <button type="submit" class="submit-btn" id="submit-btn">Registrar carga</button>
+        </form>
+      </div>
+
+      <div class="card" style="margin-top:16px;">
+        <h3 style="margin:0 0 4px;font-size:14px;color:var(--text-secondary);">Mis últimas cargas</h3>
+        <div id="mis-cargas-list"><div class="empty-state">Cargando...</div></div>
+      </div>
+    </section>
+  </div>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+  const BASE_ID = 'appENkOhah5ZFaTCj';
+  const TABLE_CARGAS = 'Cargas';
+  const TABLE_USUARIOS = 'Usuarios';
+  let SESSION = null;
+
+  // ---------- almacenamiento local ----------
+  const CONFIG_CACHE_KEY   = 'gp_config_cache';
+  const PENDING_KEY        = 'gp_pending_cargas';   // cola de cargas sin sincronizar
+  const ULTIMO_LOTE_KEY    = 'gp_ultimo_lote';
+
+  // Nota: el token de Airtable se comparte con la app de Informes si están
+  // instaladas en el mismo dominio (misma clave 'gp_token'), para no pedirlo
+  // dos veces. La sesión de usuario, en cambio, usa una clave propia de esta
+  // app ('gp_session_operario') para que nunca se mezcle con la sesión de
+  // un jefe que use Informes en el mismo teléfono/navegador.
+  function getToken(){ return localStorage.getItem('gp_token'); }
+  function setToken(t){ localStorage.setItem('gp_token', t); }
+  function clearToken(){ localStorage.removeItem('gp_token'); }
+  function getSession(){ try { return JSON.parse(localStorage.getItem('gp_session_operario')); } catch(e){ return null; } }
+  function setSession(s){ localStorage.setItem('gp_session_operario', JSON.stringify(s)); }
+  function clearSession(){ localStorage.removeItem('gp_session_operario'); }
+
+  function getPendientes(){ try { return JSON.parse(localStorage.getItem(PENDING_KEY)) || []; } catch(e){ return []; } }
+  function setPendientes(list){ localStorage.setItem(PENDING_KEY, JSON.stringify(list)); }
+
+  // ---------- red: distinguir "sin conexión" de "error real de Airtable" ----------
+  // Si falla la conexión (sin internet, sin señal) -> se guarda localmente y se reintenta solo.
+  // Si Airtable responde con un error real (token inválido, dato mal formado, etc.) -> se
+  // muestra al operario en el momento, porque reintentarlo solo no lo va a arreglar.
+  function esErrorDeRed(ex){
+    if(!navigator.onLine) return true;
+    if(ex instanceof TypeError) return true; // fetch falla así cuando no hay conexión / DNS / etc.
+    if(ex && /failed to fetch|network|load failed/i.test(ex.message||'')) return true;
+    return false;
+  }
+
+  async function airtableFetch(path, options={}){
+    const token = getToken();
+    const res = await fetch(`https://api.airtable.com/v0/${BASE_ID}${path}`, {
+      ...options,
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        ...(options.headers||{})
+      }
+    });
+    if(!res.ok){
+      const err = await res.json().catch(()=>({}));
+      throw new Error((err.error && err.error.message) ? err.error.message : `Error ${res.status}`);
+    }
+    return res.json();
+  }
+
+  function escapeFormula(s){ return String(s).replace(/'/g, "\\'"); }
+
+  async function login(usuario, password, rolEsperado){
+    const formula = `AND({Usuario}='${escapeFormula(usuario)}',{Password}='${escapeFormula(password)}')`;
+    const data = await airtableFetch(`/${TABLE_USUARIOS}?filterByFormula=${encodeURIComponent(formula)}`);
+    if(!data.records.length) return {ok:false, error:'Usuario o contraseña incorrectos.'};
+    const rec = data.records[0];
+    const rol = (rec.fields.Rol||'').toLowerCase().trim();
+    if(rolEsperado && rol !== rolEsperado) return {ok:false, error:'Este usuario no tiene acceso a esta sección.'};
+    return {ok:true, rol, nombre: rec.fields.Nombre || usuario, usuario};
+  }
+
+  async function obtenerConfig(){
+    const token = getToken();
+    const res = await fetch(`https://api.airtable.com/v0/meta/bases/${BASE_ID}/tables`, {
+      headers: {'Authorization': `Bearer ${token}`}
+    });
+    if(!res.ok) throw new Error('No se pudo cargar la configuración.');
+    const data = await res.json();
+    const tabla = data.tables.find(t=>t.name===TABLE_CARGAS);
+    const choices = (fieldName) => {
+      const f = tabla.fields.find(f=>f.name===fieldName);
+      return (f && f.options && f.options.choices) ? f.options.choices.map(c=>c.name) : [];
+    };
+    return { Productos: choices('Producto'), Turnos: choices('Turno'), MicroResultados: choices('Micro') };
+  }
+
+  function microBadgeClass(micro){
+    return micro==='Apto' ? 'apto' : (micro==='No apto' ? 'no-apto' : 'pendiente');
+  }
+
+  function sugerirProximoLote(ultimoLote){
+    const m = String(ultimoLote||'').match(/^(.*?)(\d+)\s*$/);
+    if(!m) return '';
+    const prefijo = m[1];
+    const numero = m[2];
+    const siguiente = String(Number(numero)+1).padStart(numero.length, '0');
+    return prefijo + siguiente;
+  }
+
+  async function obtenerProximoLoteSugerido(){
+    try{
+      const qs = new URLSearchParams({
+        'pageSize': '1',
+        'sort[0][field]': 'Fecha',
+        'sort[0][direction]': 'desc',
+        'sort[1][field]': 'Hora',
+        'sort[1][direction]': 'desc'
+      });
+      const data = await airtableFetch(`/${TABLE_CARGAS}?${qs.toString()}`);
+      if(!data.records.length) return '';
+      return sugerirProximoLote(data.records[0].fields.Lote || '');
+    }catch(ex){
+      // Sin conexión (u otro problema): usamos el último lote que se cargó
+      // desde este mismo teléfono, para no dejar el campo vacío.
+      const local = localStorage.getItem(ULTIMO_LOTE_KEY);
+      return local ? sugerirProximoLote(local) : '';
+    }
+  }
+
+  async function obtenerMisUltimasCargas(nombreOperador){
+    if(!nombreOperador) return [];
+    const formula = `{Operador}='${escapeFormula(nombreOperador)}'`;
+    const qs = new URLSearchParams({
+      pageSize: '5',
+      filterByFormula: formula,
+      'sort[0][field]': 'Fecha',
+      'sort[0][direction]': 'desc',
+      'sort[1][field]': 'Hora',
+      'sort[1][direction]': 'desc'
+    });
+    const data = await airtableFetch(`/${TABLE_CARGAS}?${qs.toString()}`);
+    return data.records.map(r=>r.fields);
+  }
+
+  async function cargarMisUltimasCargas(){
+    const cont = document.getElementById('mis-cargas-list');
+    if(!SESSION) return;
+
+    const pendientes = getPendientes();
+    let remotas = [];
+    let errorRemoto = false;
+    try{
+      remotas = await obtenerMisUltimasCargas(SESSION.nombre);
+    }catch(ex){
+      errorRemoto = true;
+    }
+
+    const itemsPendientes = pendientes.map(p => ({
+      esPendiente: true,
+      estado: p.estado || 'pendiente', // 'pendiente' | 'error'
+      errorMsg: p.errorMsg || '',
+      Lote: p.fields.Lote, Producto: p.fields.Producto,
+      Fecha: p.fields.Fecha, Hora: p.fields.Hora,
+      Toneladas: p.fields.Toneladas, Micro: p.fields.Micro
+    }));
+    const itemsRemotos = remotas.map(f => ({ esPendiente:false, ...f }));
+    const todos = [...itemsPendientes, ...itemsRemotos].slice(0, 8);
+
+    if(!todos.length){
+      cont.innerHTML = errorRemoto
+        ? '<div class="empty-state">No se pudo cargar el historial (sin conexión).</div>'
+        : '<div class="empty-state">Todavía no registraste ninguna carga.</div>';
+      return;
+    }
+
+    cont.innerHTML = todos.map(f=>{
+      const ton = typeof f.Toneladas === 'number' ? f.Toneladas.toFixed(1) : (f.Toneladas || '0');
+      let badgeHtml;
+      if(f.esPendiente){
+        badgeHtml = f.estado === 'error'
+          ? `<span class="badge sync-error" title="${(f.errorMsg||'').replace(/"/g,'')}">Error al subir</span>`
+          : `<span class="badge sync-pendiente">Pendiente de subir</span>`;
+      } else {
+        const micro = f.Micro || 'Sin dato';
+        badgeHtml = `<span class="badge ${microBadgeClass(micro)}">${micro}</span>`;
+      }
+      return `<div class="mini-item">
+        <div class="left">
+          <div class="lote">${f.Lote || 'Sin N° de lote'} · ${f.Producto||''}</div>
+          <div class="meta">${f.Fecha||''} · ${f.Hora||''}</div>
+        </div>
+        <div class="right">
+          <div class="ton">${ton} tn</div>
+          ${badgeHtml}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function construirFields(carga, nombreOperador){
+    return {
+      Fecha: carga.fecha,
+      Hora: carga.hora,
+      Turno: carga.turno,
+      Producto: carga.producto,
+      Lote: carga.lote,
+      Toneladas: Number(carga.toneladas)||0,
+      Pureza: Number(carga.pureza)||0,
+      Humedad: (carga.humedad==='' ? null : Number(carga.humedad)),
+      Micro: carga.micro,
+      Operador: nombreOperador || '',
+      Observaciones: carga.obs || ''
+    };
+  }
+
+  async function enviarCargaAAirtable(fields){
+    await airtableFetch(`/${TABLE_CARGAS}`, {
+      method: 'POST',
+      body: JSON.stringify({records:[{fields}]})
+    });
+  }
+
+  // ---------- cola offline: nunca se pierde una carga ----------
+  function encolarCarga(fields){
+    const pendientes = getPendientes();
+    pendientes.push({
+      localId: 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2,8),
+      fields,
+      estado: 'pendiente',
+      errorMsg: '',
+      creadoEn: new Date().toISOString()
+    });
+    setPendientes(pendientes);
+  }
+
+  let flushEnCurso = false;
+  async function sincronizarPendientes(silencioso){
+    if(flushEnCurso) return;
+    const pendientes = getPendientes();
+    if(!pendientes.length) return;
+    flushEnCurso = true;
+
+    let subieron = 0;
+    let cortarPorRed = false;
+    const restantes = [];
+
+    // Recorremos la cola en orden. Si en algún punto falla por falta de
+    // conexión, frenamos ahí y dejamos ese ítem + todos los siguientes tal
+    // cual para el próximo intento (no se pierde nada, no se reordena).
+    for(const item of pendientes){
+      if(cortarPorRed){ restantes.push(item); continue; }
+      try{
+        await enviarCargaAAirtable(item.fields);
+        subieron++;
+        // se subió: no se vuelve a agregar a la cola
+      }catch(ex){
+        if(esErrorDeRed(ex)){
+          cortarPorRed = true;
+          restantes.push(item);
+        } else {
+          // Error real de Airtable (token vencido, dato inválido, etc.):
+          // queda marcado como error para revisar, pero NO se descarta.
+          item.estado = 'error';
+          item.errorMsg = ex.message || 'Error desconocido';
+          restantes.push(item);
+        }
+      }
+    }
+
+    setPendientes(restantes);
+    flushEnCurso = false;
+    if(subieron > 0){
+      cargarMisUltimasCargas();
+      actualizarBannerConexion();
+      if(!silencioso) showToast(subieron === 1 ? 'Se sincronizó 1 carga pendiente' : `Se sincronizaron ${subieron} cargas pendientes`);
+    }
+  }
+
+  function actualizarBannerConexion(){
+    const banner = document.getElementById('conn-banner');
+    const pendientes = getPendientes();
+    if(!navigator.onLine){
+      banner.className = 'conn-banner offline';
+      banner.innerHTML = `<span class="dot"></span> Sin conexión${pendientes.length ? ' — ' + pendientes.length + ' carga(s) guardadas en el teléfono, se subirán solas' : ''}`;
+      banner.classList.remove('hidden');
+    } else if(pendientes.length){
+      banner.className = 'conn-banner pending';
+      banner.innerHTML = `<span class="dot"></span> Sincronizando ${pendientes.length} carga(s) pendiente(s)...`;
+      banner.classList.remove('hidden');
+    } else {
+      banner.classList.add('hidden');
+    }
+  }
+
+  window.addEventListener('online', ()=>{ actualizarBannerConexion(); sincronizarPendientes(); });
+  window.addEventListener('offline', actualizarBannerConexion);
+  setInterval(()=>{ if(navigator.onLine) sincronizarPendientes(true); actualizarBannerConexion(); }, 30000);
+
+  // ---------- flujo de pantallas ----------
+  function mostrarPantalla(id){
+    ['setup-screen','login-screen','app-screen'].forEach(x=>{
+      document.getElementById(x).classList.toggle('hidden', x!==id);
+    });
+  }
+
+  function iniciar(){
+    if(!getToken()){ mostrarPantalla('setup-screen'); return; }
+    const s = getSession();
+    if(s && s.rol === 'operario'){
+      SESSION = s;
+      document.getElementById('user-label').textContent = s.nombre;
+      mostrarPantalla('app-screen');
+      cargarConfig();
+      cargarMisUltimasCargas();
+      actualizarBannerConexion();
+      sincronizarPendientes(true);
+    } else {
+      mostrarPantalla('login-screen');
+    }
+  }
+
+  document.getElementById('setup-form').addEventListener('submit', function(e){
+    e.preventDefault();
+    const token = document.getElementById('s-token').value.trim();
+    if(!token){ return; }
+    setToken(token);
+    mostrarPantalla('login-screen');
+  });
+
+  function resetToken(){
+    clearToken();
+    clearSession();
+    document.getElementById('carga-form').reset();
+    mostrarPantalla('setup-screen');
+  }
+
+  document.getElementById('login-form').addEventListener('submit', async function(e){
+    e.preventDefault();
+    const btn = document.getElementById('login-btn');
+    const err = document.getElementById('login-error');
+    err.style.display = 'none';
+    btn.disabled = true; btn.textContent = 'Ingresando...';
+    const usuario = document.getElementById('l-usuario').value;
+    const password = document.getElementById('l-password').value;
+    try{
+      const res = await login(usuario, password, 'operario');
+      btn.disabled = false; btn.textContent = 'Ingresar';
+      if(!res.ok){ err.textContent = res.error; err.style.display = 'block'; return; }
+      SESSION = res;
+      setSession(res);
+      document.getElementById('user-label').textContent = res.nombre;
+      mostrarPantalla('app-screen');
+      cargarConfig();
+      cargarMisUltimasCargas();
+      actualizarBannerConexion();
+      sincronizarPendientes(true);
+    }catch(ex){
+      btn.disabled = false; btn.textContent = 'Ingresar';
+      if(esErrorDeRed(ex)){
+        err.textContent = 'No hay conexión a internet. Para ingresar por primera vez en este teléfono se necesita señal; una vez logueado, la carga funciona sin conexión.';
+      } else {
+        err.textContent = 'Error de conexión: ' + ex.message;
+      }
+      err.style.display = 'block';
+    }
+  });
+
+  function cerrarSesion(){
+    clearSession();
+    SESSION = null;
+    document.getElementById('carga-form').reset();
+    mostrarPantalla('login-screen');
+  }
+
+  async function cargarConfig(){
+    try{
+      const config = await obtenerConfig();
+      localStorage.setItem(CONFIG_CACHE_KEY, JSON.stringify(config));
+      llenarSelect('f-producto', config.Productos || []);
+      llenarSelect('f-turno', config.Turnos || []);
+      llenarSelect('f-micro', config.MicroResultados || []);
+      prepararFormulario();
+    }catch(ex){
+      const cache = localStorage.getItem(CONFIG_CACHE_KEY);
+      if(cache && esErrorDeRed(ex)){
+        const config = JSON.parse(cache);
+        llenarSelect('f-producto', config.Productos || []);
+        llenarSelect('f-turno', config.Turnos || []);
+        llenarSelect('f-micro', config.MicroResultados || []);
+        prepararFormulario();
+        showToast('Sin conexión: usando la última configuración guardada', false);
+      } else {
+        mostrarErrorForm('No se pudo cargar la configuración: ' + ex.message);
+      }
+    }
+  }
+
+  function llenarSelect(id, opciones){
+    const sel = document.getElementById(id);
+    sel.innerHTML = '';
+    opciones.forEach(op=>{
+      const o = document.createElement('option');
+      o.value = op; o.textContent = op;
+      sel.appendChild(o);
+    });
+  }
+
+  function prepararFormulario(){
+    document.getElementById('f-fecha').value = hoyISO();
+    document.getElementById('f-hora').value = horaAhora();
+    document.getElementById('f-lote').value = '';
+    obtenerProximoLoteSugerido().then(sugerido=>{
+      if(sugerido) document.getElementById('f-lote').value = sugerido;
+    });
+  }
+  function hoyISO(){
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  function horaAhora(){
+    const d = new Date();
+    return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  }
+
+  document.getElementById('carga-form').addEventListener('submit', async function(e){
+    e.preventDefault();
+    const btn = document.getElementById('submit-btn');
+    const err = document.getElementById('form-error');
+    err.style.display = 'none';
+
+    const carga = {
+      fecha: document.getElementById('f-fecha').value,
+      hora: document.getElementById('f-hora').value,
+      turno: document.getElementById('f-turno').value,
+      producto: document.getElementById('f-producto').value,
+      lote: document.getElementById('f-lote').value,
+      toneladas: document.getElementById('f-toneladas').value,
+      pureza: document.getElementById('f-pureza').value,
+      humedad: document.getElementById('f-humedad').value,
+      micro: document.getElementById('f-micro').value,
+      obs: document.getElementById('f-obs').value
+    };
+    if(!carga.producto || !carga.fecha || !carga.toneladas || !carga.pureza || !carga.micro || !carga.lote){
+      mostrarErrorForm('Completá los campos obligatorios (incluido N° de Lote).'); return;
+    }
+
+    btn.disabled = true; btn.textContent = 'Guardando...';
+    const nombreOperador = SESSION ? SESSION.nombre : '';
+    const fields = construirFields(carga, nombreOperador);
+
+    try{
+      await enviarCargaAAirtable(fields);
+      localStorage.setItem(ULTIMO_LOTE_KEY, carga.lote);
+      btn.disabled = false; btn.textContent = 'Registrar carga';
+      showToast('Carga registrada correctamente');
+      document.getElementById('carga-form').reset();
+      prepararFormulario();
+      document.getElementById('f-toneladas').value = 25;
+      cargarMisUltimasCargas();
+    }catch(ex){
+      btn.disabled = false; btn.textContent = 'Registrar carga';
+      if(esErrorDeRed(ex)){
+        // Sin conexión: NO se pierde. Queda guardada en el teléfono y se
+        // sube sola apenas vuelva la señal.
+        encolarCarga(fields);
+        localStorage.setItem(ULTIMO_LOTE_KEY, carga.lote);
+        document.getElementById('carga-form').reset();
+        prepararFormulario();
+        document.getElementById('f-toneladas').value = 25;
+        cargarMisUltimasCargas();
+        actualizarBannerConexion();
+        showToast('Sin conexión: la carga quedó guardada en el teléfono y se subirá sola cuando vuelva internet', false, true);
+      } else {
+        mostrarErrorForm('No se pudo guardar: ' + ex.message);
+      }
+    }
+  });
+
+  function mostrarErrorForm(msg){
+    const err = document.getElementById('form-error');
+    err.textContent = msg;
+    err.style.display = 'block';
+  }
+  function showToast(msg, isError, isWarn){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (isError ? ' error' : (isWarn ? ' warn' : ''));
+    setTimeout(()=>t.classList.remove('show'), isWarn ? 4000 : 2200);
+  }
+
+  // ---------- service worker: permite abrir la app sin conexión ----------
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', ()=>{
+      navigator.serviceWorker.register('./sw.js').catch(()=>{ /* si falla, la app sigue funcionando igual */ });
+    });
+  }
+
+  iniciar();
+</script>
+</body>
+</html>
