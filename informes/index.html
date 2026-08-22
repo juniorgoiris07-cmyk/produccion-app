@@ -78,6 +78,12 @@
   .setup-note{font-size:12px;color:var(--text-muted);line-height:1.5;background:var(--surface-2);border:1px solid var(--gridline);border-radius:8px;padding:10px 12px;margin-bottom:16px;}
   .hidden{display:none !important;}
 
+  .search-wrap{position:relative;margin-bottom:12px;}
+  .search-wrap .search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none;}
+  .search-input{width:100%;padding:10px 34px 10px 36px;border:1px solid var(--border);border-radius:9px;background:var(--surface-1);color:var(--text-primary);font-size:14px;font-family:inherit;transition:border-color .15s ease, box-shadow .15s ease;}
+  .search-input:focus{outline:none;border-color:var(--series-1);box-shadow:0 0 0 3px rgba(var(--series-1-rgb),0.15);}
+  .search-clear{position:absolute;right:5px;top:50%;transform:translateY(-50%);border:none;background:none;color:var(--text-muted);font-size:13px;cursor:pointer;padding:6px;line-height:1;border-radius:50%;transition:background-color .15s ease;}
+  .search-clear:hover{background:var(--surface-2);}
   .toolbar{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
   .toolbar .grid-meta{font-size:12px;color:var(--text-muted);margin:0;}
   .toolbar .export-btn{margin-left:auto;display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border:1px solid var(--gridline);border-radius:8px;background:var(--card);color:var(--text-primary);font-size:13px;font-weight:600;cursor:pointer;transition:background-color .15s ease, box-shadow .15s ease;box-shadow:var(--shadow-sm);flex-shrink:0;}
@@ -183,6 +189,15 @@
     <section>
       <div id="conn-banner" class="conn-banner hidden"></div>
 
+      <div class="search-wrap">
+        <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/>
+          <path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <input type="text" id="search-input" class="search-input" placeholder="Buscar por N° de lote o producto..." autocomplete="off">
+        <button type="button" class="search-clear hidden" id="search-clear" aria-label="Limpiar búsqueda">✕</button>
+      </div>
+
       <div class="toolbar">
         <div class="grid-meta" id="lotes-meta"></div>
         <button class="export-btn" onclick="recargarDatos()">
@@ -282,6 +297,20 @@
       cont.innerHTML = html;
     }
   }
+
+  // ---------- buscador de lotes ----------
+  const searchInputEl = document.getElementById('search-input');
+  const searchClearEl = document.getElementById('search-clear');
+  searchInputEl.addEventListener('input', ()=>{
+    searchClearEl.classList.toggle('hidden', !searchInputEl.value);
+    renderLotesGrid(TODAS_LAS_CARGAS);
+  });
+  searchClearEl.addEventListener('click', ()=>{
+    searchInputEl.value = '';
+    searchClearEl.classList.add('hidden');
+    renderLotesGrid(TODAS_LAS_CARGAS);
+    searchInputEl.focus();
+  });
 
   document.getElementById('setup-form').addEventListener('submit', async function(e){
     e.preventDefault();
@@ -384,11 +413,20 @@
     const cont = document.getElementById('lotes-grid');
     const meta = document.getElementById('lotes-meta');
     cont.innerHTML = '';
+    // Buscador: filtra por N° de lote o producto (no distingue mayúsculas/minúsculas).
+    const termino = (document.getElementById('search-input')?.value || '').trim().toLowerCase();
+    const filtrado = termino
+      ? datos.filter(c => String(c.lote||'').toLowerCase().includes(termino) || String(c.producto||'').toLowerCase().includes(termino))
+      : datos;
     // Siempre el lote más nuevo arriba (fecha y hora reales, no alfabético).
-    const ordenado = [...datos].sort((a,b)=> claveOrden(b).localeCompare(claveOrden(a)));
-    meta.textContent = ordenado.length + ' lote(s) cargados · el más nuevo arriba. Tocá uno para ver el detalle completo.';
+    const ordenado = [...filtrado].sort((a,b)=> claveOrden(b).localeCompare(claveOrden(a)));
+    meta.textContent = termino
+      ? `${ordenado.length} de ${datos.length} lote(s) · el más nuevo arriba.`
+      : ordenado.length + ' lote(s) cargados · el más nuevo arriba. Tocá uno para ver el detalle completo.';
     if(ordenado.length===0){
-      cont.innerHTML = '<div class="empty-state">Todavía no hay lotes cargados en la planilla.</div>';
+      cont.innerHTML = termino
+        ? '<div class="empty-state">No se encontró ningún lote que coincida con la búsqueda.</div>'
+        : '<div class="empty-state">Todavía no hay lotes cargados en la planilla.</div>';
       return;
     }
     ordenado.forEach((c,idx)=>{
