@@ -152,6 +152,10 @@
   .turno-summary-title{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.03em;}
   .turno-summary-title svg{color:var(--series-1);flex-shrink:0;}
   .turno-summary-date{font-size:11.5px;color:var(--text-muted);font-weight:600;white-space:nowrap;}
+  .turno-summary-datebox{display:flex;align-items:center;gap:6px;}
+  .turno-date-input{font-family:inherit;font-size:11.5px;font-weight:600;color:var(--text-primary);background:var(--surface-2);border:1px solid var(--gridline);border-radius:7px;padding:4px 6px;max-width:126px;}
+  .turno-hoy-btn{appearance:none;font-family:inherit;font-size:11px;font-weight:700;color:var(--series-1);background:transparent;border:1px solid var(--series-1);border-radius:7px;padding:4px 8px;cursor:pointer;white-space:nowrap;}
+  .turno-hoy-btn:hover{background:var(--series-1);color:#fff;}
   .turno-summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;}
   .turno-card{appearance:none;font-family:inherit;background:var(--surface-2);border:1px solid var(--gridline);border-radius:9px;padding:10px 6px;text-align:center;cursor:pointer;transition:box-shadow .2s ease,border-color .2s ease,transform .15s ease;}
   .turno-card:hover{border-color:var(--series-1);box-shadow:var(--shadow-sm);transform:translateY(-1px);}
@@ -228,9 +232,12 @@
         <div class="turno-summary-head">
           <span class="turno-summary-title">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 3v18h18M7 15l4-4 3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            Resumen de hoy por turno
+            <span id="turno-summary-titletext">Resumen de hoy por turno</span>
           </span>
-          <span class="turno-summary-date" id="turno-summary-date"></span>
+          <div class="turno-summary-datebox">
+            <input type="date" id="turno-summary-datepick" class="turno-date-input" aria-label="Elegir fecha del resumen por turno">
+            <button type="button" id="turno-summary-hoy-btn" class="turno-hoy-btn">Hoy</button>
+          </div>
         </div>
         <div class="turno-summary-grid" id="turno-summary-grid"></div>
         <div class="turno-summary-total" id="turno-summary-total"></div>
@@ -358,6 +365,23 @@
     renderLotesGrid(TODAS_LAS_CARGAS);
     searchInputEl.focus();
   });
+
+  // ---------- selector de fecha del resumen por turno ----------
+  const turnoDateEl = document.getElementById('turno-summary-datepick');
+  const turnoHoyBtnEl = document.getElementById('turno-summary-hoy-btn');
+  if(turnoDateEl){
+    turnoDateEl.max = fechaHoyISO(); // no tiene sentido mirar fechas futuras
+    turnoDateEl.addEventListener('change', ()=>{
+      fechaSeleccionadaTurno = turnoDateEl.value || null;
+      renderResumenTurno(TODAS_LAS_CARGAS);
+    });
+  }
+  if(turnoHoyBtnEl){
+    turnoHoyBtnEl.addEventListener('click', ()=>{
+      fechaSeleccionadaTurno = null;
+      renderResumenTurno(TODAS_LAS_CARGAS);
+    });
+  }
 
   document.getElementById('setup-form').addEventListener('submit', async function(e){
     e.preventDefault();
@@ -518,25 +542,35 @@
     return `${d.getFullYear()}-${mm}-${dd}`;
   }
 
+  // fechaSeleccionadaTurno: null significa "hoy". Si el jefe elige otra
+  // fecha con el selector, este resumen se recalcula para ese día en vez
+  // del día actual, para poder revisar registros de días anteriores.
+  let fechaSeleccionadaTurno = null;
+
   function renderResumenTurno(datos){
     const grid = document.getElementById('turno-summary-grid');
     if(!grid) return;
-    const dateEl = document.getElementById('turno-summary-date');
     const totalEl = document.getElementById('turno-summary-total');
+    const dateInput = document.getElementById('turno-summary-datepick');
     const hoyISO = fechaHoyISO();
-    if(dateEl) dateEl.textContent = fechaVisual(hoyISO);
+    const objetivoISO = fechaSeleccionadaTurno || hoyISO;
+    const esHoy = objetivoISO === hoyISO;
+
+    if(dateInput && dateInput.value !== objetivoISO) dateInput.value = objetivoISO;
+    const tituloEl = document.getElementById('turno-summary-titletext');
+    if(tituloEl) tituloEl.textContent = esHoy ? 'Resumen de hoy por turno' : 'Resumen por turno';
 
     // Compara por fecha normalizada (no como texto suelto), así funciona
     // sin importar si la celda vino como "AAAA-MM-DD" o "DD/MM/AAAA".
-    const deHoy = datos.filter(c => fechaISO_(c.fecha) === hoyISO);
+    const delDia = datos.filter(c => fechaISO_(c.fecha) === objetivoISO);
 
-    // Un grupo por cada nombre de turno distinto que aparezca hoy (sin
+    // Un grupo por cada nombre de turno distinto que aparezca ese día (sin
     // suponer cuáles ni cuántos son), ordenados por la hora más temprana de
     // cada grupo para que el turno de la mañana/día quede antes que el de
     // la noche sin tener que conocer los nombres de antemano.
     const grupos = new Map();
     let sinTurno = 0;
-    deHoy.forEach(c=>{
+    delDia.forEach(c=>{
       const nombre = String(c.turno||'').trim();
       if(!nombre){ sinTurno += 1; return; }
       if(!grupos.has(nombre)) grupos.set(nombre, { bigbags: [], primeraHora: horaAMinutos(c.hora) });
@@ -551,7 +585,7 @@
 
     grid.innerHTML = '';
     if(!ordenados.length){
-      grid.innerHTML = '<div class="empty-state" style="padding:4px 0;">Todavía no hay bigbags de hoy con turno cargado.</div>';
+      grid.innerHTML = `<div class="empty-state" style="padding:4px 0;">Todavía no hay bigbags ${esHoy?'de hoy':'de ese día'} con turno cargado.</div>`;
     } else {
       // Cada tarjeta se puede tocar para ver el detalle de los bigbags de ese
       // turno en el día (a qué lote pertenece cada uno, hora y N° de bigbag).
@@ -560,18 +594,18 @@
         card.type = 'button';
         card.className = 'turno-card';
         card.innerHTML = `<div class="turno-card-head">${iconoTurno(nombre)}<span>${nombre}</span></div>
-          <div class="turno-card-ton">${formatKg(d.bigbags.length * KG_POR_BIGBAG)}</div>
+          <div class="turno-card-ton">${formatTon(d.bigbags.length * TON_POR_BIGBAG)}</div>
           <div class="turno-card-lotes">${d.bigbags.length} bigbag${d.bigbags.length===1?'':'s'} · tocá para ver el detalle</div>`;
-        card.addEventListener('click', ()=> abrirModalTurno(nombre, fechaVisual(hoyISO), d.bigbags));
+        card.addEventListener('click', ()=> abrirModalTurno(nombre, fechaVisual(objetivoISO), d.bigbags));
         grid.appendChild(card);
       });
     }
 
     if(totalEl){
-      if(!deHoy.length){
-        totalEl.textContent = 'Todavía no se cargó ningún bigbag hoy.';
+      if(!delDia.length){
+        totalEl.textContent = esHoy ? 'Todavía no se cargó ningún bigbag hoy.' : 'No hay bigbags cargados ese día.';
       } else {
-        totalEl.textContent = `Total del día: ${formatKg(deHoy.length * KG_POR_BIGBAG)} (${deHoy.length} bigbag(s))`
+        totalEl.textContent = `Total del día: ${formatTon(delDia.length * TON_POR_BIGBAG)} (${delDia.length} bigbag(s))`
           + (sinTurno ? ` · ${sinTurno} sin turno asignado` : '');
       }
     }
@@ -585,7 +619,7 @@
     const ordenados = [...bigbags].sort((a,b)=> horaAMinutos(a.hora) - horaAMinutos(b.hora));
     body.innerHTML = `
       <div class="modal-title">Turno ${nombre}</div>
-      <div class="modal-subtitle">${fecha} · ${bigbags.length} bigbag${bigbags.length===1?'':'s'} · ${formatKg(bigbags.length * KG_POR_BIGBAG)}</div>
+      <div class="modal-subtitle">${fecha} · ${bigbags.length} bigbag${bigbags.length===1?'':'s'} · ${formatTon(bigbags.length * TON_POR_BIGBAG)}</div>
       <div class="turno-detalle-list" id="turno-detalle-list"></div>
     `;
     const list = document.getElementById('turno-detalle-list');
@@ -615,10 +649,10 @@
   // lote de 25 tn se completa al llegar a 25 bigbags. Si ese supuesto no es
   // correcto, este es el único número que hay que ajustar.
   const BIGBAGS_POR_LOTE = 25;
-  const KG_POR_BIGBAG = 1000; // 1 bigbag = 1 tonelada, confirmado.
+  const TON_POR_BIGBAG = 1; // 1 bigbag = 1 tonelada, confirmado.
 
-  function formatKg(kg){
-    return new Intl.NumberFormat('es-AR').format(kg) + ' kg';
+  function formatTon(ton){
+    return new Intl.NumberFormat('es-AR', { maximumFractionDigits: 2 }).format(ton) + ' t';
   }
 
   function promedio_(bbs, campo){
