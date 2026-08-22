@@ -560,8 +560,8 @@
         card.type = 'button';
         card.className = 'turno-card';
         card.innerHTML = `<div class="turno-card-head">${iconoTurno(nombre)}<span>${nombre}</span></div>
-          <div class="turno-card-ton">${d.bigbags.length} bigbag${d.bigbags.length===1?'':'s'}</div>
-          <div class="turno-card-lotes">tocá para ver el detalle</div>`;
+          <div class="turno-card-ton">${formatKg(d.bigbags.length * KG_POR_BIGBAG)}</div>
+          <div class="turno-card-lotes">${d.bigbags.length} bigbag${d.bigbags.length===1?'':'s'} · tocá para ver el detalle</div>`;
         card.addEventListener('click', ()=> abrirModalTurno(nombre, fechaVisual(hoyISO), d.bigbags));
         grid.appendChild(card);
       });
@@ -571,7 +571,7 @@
       if(!deHoy.length){
         totalEl.textContent = 'Todavía no se cargó ningún bigbag hoy.';
       } else {
-        totalEl.textContent = `Total del día: ${deHoy.length} bigbag(s) cargados`
+        totalEl.textContent = `Total del día: ${formatKg(deHoy.length * KG_POR_BIGBAG)} (${deHoy.length} bigbag(s))`
           + (sinTurno ? ` · ${sinTurno} sin turno asignado` : '');
       }
     }
@@ -585,7 +585,7 @@
     const ordenados = [...bigbags].sort((a,b)=> horaAMinutos(a.hora) - horaAMinutos(b.hora));
     body.innerHTML = `
       <div class="modal-title">Turno ${nombre}</div>
-      <div class="modal-subtitle">${fecha} · ${bigbags.length} bigbag${bigbags.length===1?'':'s'}</div>
+      <div class="modal-subtitle">${fecha} · ${bigbags.length} bigbag${bigbags.length===1?'':'s'} · ${formatKg(bigbags.length * KG_POR_BIGBAG)}</div>
       <div class="turno-detalle-list" id="turno-detalle-list"></div>
     `;
     const list = document.getElementById('turno-detalle-list');
@@ -615,6 +615,11 @@
   // lote de 25 tn se completa al llegar a 25 bigbags. Si ese supuesto no es
   // correcto, este es el único número que hay que ajustar.
   const BIGBAGS_POR_LOTE = 25;
+  const KG_POR_BIGBAG = 1000; // 1 bigbag = 1 tonelada, confirmado.
+
+  function formatKg(kg){
+    return new Intl.NumberFormat('es-AR').format(kg) + ' kg';
+  }
 
   function promedio_(bbs, campo){
     const vals = bbs.map(b=>b[campo]).filter(v=> v!=null && !isNaN(v));
