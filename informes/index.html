@@ -508,12 +508,10 @@
     let sinTurno = 0;
     deHoy.forEach(c=>{
       const nombre = String(c.turno||'').trim();
-      const ton = Number(c.toneladas) || 0;
       if(!nombre){ sinTurno += 1; return; }
-      if(!grupos.has(nombre)) grupos.set(nombre, { toneladas: 0, lotes: [], primeraHora: horaAMinutos(c.hora) });
+      if(!grupos.has(nombre)) grupos.set(nombre, { bigbags: [], primeraHora: horaAMinutos(c.hora) });
       const g = grupos.get(nombre);
-      g.toneladas += ton;
-      g.lotes.push(c);
+      g.bigbags.push(c);
       g.primeraHora = Math.min(g.primeraHora, horaAMinutos(c.hora));
     });
     const ordenados = [...grupos.entries()].sort((a,b)=>{
@@ -523,52 +521,50 @@
 
     grid.innerHTML = '';
     if(!ordenados.length){
-      grid.innerHTML = '<div class="empty-state" style="padding:4px 0;">Todavía no hay lotes de hoy con turno cargado.</div>';
+      grid.innerHTML = '<div class="empty-state" style="padding:4px 0;">Todavía no hay bigbags de hoy con turno cargado.</div>';
     } else {
-      // Cada tarjeta se puede tocar para ver el detalle de los lotes de ese
-      // turno en el día (número de lote, hora y toneladas de cada uno).
+      // Cada tarjeta se puede tocar para ver el detalle de los bigbags de ese
+      // turno en el día (a qué lote pertenece cada uno, hora y N° de bigbag).
       ordenados.forEach(([nombre, d])=>{
         const card = document.createElement('button');
         card.type = 'button';
         card.className = 'turno-card';
         card.innerHTML = `<div class="turno-card-head">${iconoTurno(nombre)}<span>${nombre}</span></div>
-          <div class="turno-card-ton">${d.toneladas.toFixed(1)} tn</div>
-          <div class="turno-card-lotes">${d.lotes.length} lote${d.lotes.length===1?'':'s'} · tocá para ver el detalle</div>`;
-        card.addEventListener('click', ()=> abrirModalTurno(nombre, hoy, d.lotes));
+          <div class="turno-card-ton">${d.bigbags.length} bigbag${d.bigbags.length===1?'':'s'}</div>
+          <div class="turno-card-lotes">tocá para ver el detalle</div>`;
+        card.addEventListener('click', ()=> abrirModalTurno(nombre, hoy, d.bigbags));
         grid.appendChild(card);
       });
     }
 
     if(totalEl){
       if(!deHoy.length){
-        totalEl.textContent = 'Todavía no se cargó ningún lote hoy.';
+        totalEl.textContent = 'Todavía no se cargó ningún bigbag hoy.';
       } else {
-        const totalTon = deHoy.reduce((a,c)=> a + (Number(c.toneladas)||0), 0);
-        totalEl.textContent = `Total del día: ${totalTon.toFixed(1)} tn en ${deHoy.length} lote(s)`
+        totalEl.textContent = `Total del día: ${deHoy.length} bigbag(s) cargados`
           + (sinTurno ? ` · ${sinTurno} sin turno asignado` : '');
       }
     }
   }
 
-  // Detalle de un turno: lista de los lotes que lo componen ese día, cada
-  // uno tocable para abrir su ficha completa (reutiliza el modal de lote).
-  function abrirModalTurno(nombre, fecha, lotes){
+  // Detalle de un turno: lista de los bigbags cargados ese día en ese turno,
+  // cada uno tocable para abrir su ficha completa.
+  function abrirModalTurno(nombre, fecha, bigbags){
     const body = document.getElementById('modal-body');
-    const ordenadosLotes = [...lotes].sort((a,b)=> horaAMinutos(a.hora) - horaAMinutos(b.hora));
-    const totalTon = lotes.reduce((a,c)=> a + (Number(c.toneladas)||0), 0);
+    const ordenados = [...bigbags].sort((a,b)=> horaAMinutos(a.hora) - horaAMinutos(b.hora));
     body.innerHTML = `
       <div class="modal-title">Turno ${nombre}</div>
-      <div class="modal-subtitle">${fecha} · ${lotes.length} lote${lotes.length===1?'':'s'} · ${totalTon.toFixed(1)} tn</div>
+      <div class="modal-subtitle">${fecha} · ${bigbags.length} bigbag${bigbags.length===1?'':'s'}</div>
       <div class="turno-detalle-list" id="turno-detalle-list"></div>
     `;
     const list = document.getElementById('turno-detalle-list');
-    ordenadosLotes.forEach(c=>{
+    ordenados.forEach(c=>{
       const item = document.createElement('button');
       item.type = 'button';
       item.className = 'turno-detalle-item';
       item.innerHTML = `
-        <div class="tdi-top"><span class="tdi-lote">Lote ${c.lote || 'Sin N°'}</span><span class="tdi-hora">${c.hora || '—'}</span></div>
-        <div class="tdi-bottom"><span>${c.producto || ''}</span><span class="tdi-ton">${(Number(c.toneladas)||0).toFixed(1)} tn</span></div>
+        <div class="tdi-top"><span class="tdi-lote">Lote ${c.lote || 'Sin N°'} · BB ${c.bb ?? '—'}</span><span class="tdi-hora">${c.hora || '—'}</span></div>
+        <div class="tdi-bottom"><span>${c.producto || ''}</span><span class="tdi-ton">${c.micro || 'Sin dato'}</span></div>
       `;
       item.addEventListener('click', ()=> abrirModal(c));
       list.appendChild(item);
@@ -577,12 +573,17 @@
   }
 
   // ---------- agrupado de bigbags por lote ----------
-  // Cada fila de la planilla es un bigbag individual (su propio análisis y
-  // toneladas). Un lote junta varios bigbags con el mismo N° de lote hasta
-  // sumar las 25 tn; ahí se considera "Completo" y se puede ver el promedio
+  // Cada fila de la planilla es un bigbag individual (su propio análisis).
+  // Un lote junta varios bigbags con el mismo N° de lote hasta llegar a
+  // BIGBAGS_POR_LOTE; ahí se considera "Completo" y se puede ver el promedio
   // de sus análisis. Antes de eso queda "En curso" — el jefe lo puede ver
   // igual, con lo cargado hasta el momento.
-  const LOTE_META_TON = 25; // fácil de ajustar si el criterio cambia
+  //
+  // NOTA: la planilla ya no tiene una columna de toneladas por bigbag — se
+  // asume que cada bigbag pesa 1 tonelada (el estándar habitual), por eso un
+  // lote de 25 tn se completa al llegar a 25 bigbags. Si ese supuesto no es
+  // correcto, este es el único número que hay que ajustar.
+  const BIGBAGS_POR_LOTE = 25;
 
   function promedio_(bbs, campo){
     const vals = bbs.map(b=>b[campo]).filter(v=> v!=null && !isNaN(v));
@@ -599,17 +600,16 @@
       grupos.get(nombre).bbs.push(c);
     });
     return [...grupos.values()].map(g=>{
-      const toneladas = g.bbs.reduce((a,c)=> a + (Number(c.toneladas)||0), 0);
       const ordenados = [...g.bbs].sort((a,b)=> claveOrden(a).localeCompare(claveOrden(b)));
       const masReciente = ordenados[ordenados.length-1];
       return {
         lote: g.lote,
         bbs: ordenados,
-        toneladas,
-        completo: toneladas >= LOTE_META_TON,
+        completo: g.bbs.length >= BIGBAGS_POR_LOTE,
         promedioPureza: promedio_(g.bbs,'pureza'),
-        promedioTemperatura: promedio_(g.bbs,'temperatura'),
-        promedioHumedad: promedio_(g.bbs,'humedad'),
+        promedioTemperaturaAmbiente: promedio_(g.bbs,'temperaturaAmbiente'),
+        promedioTemperaturaGrano: promedio_(g.bbs,'temperaturaGrano'),
+        promedioHumedad: promedio_(g.bbs,'humedadGrano'),
         productoReciente: masReciente.producto || '',
         fechaReciente: masReciente.fecha || '—',
         horaReciente: masReciente.hora || '—',
@@ -647,12 +647,12 @@
       card.type = 'button';
       card.className = 'lote-card';
       card.style.animationDelay = Math.min(idx*30,300) + 'ms';
-      const pct = Math.min(100, Math.round((g.toneladas / LOTE_META_TON) * 100));
+      const pct = Math.min(100, Math.round((g.bbs.length / BIGBAGS_POR_LOTE) * 100));
       card.innerHTML = `<div class="lote-eyebrow">Lote</div>
         <div class="lote-id">${g.lote}</div>
-        <div class="lote-producto">${g.productoReciente} · ${g.bbs.length} bigbag${g.bbs.length===1?'':'s'}</div>
+        <div class="lote-producto">${g.productoReciente}</div>
         <div class="lote-stat">
-          <span class="lote-ton">${g.toneladas.toFixed(1)} / ${LOTE_META_TON} tn</span>
+          <span class="lote-ton">${g.bbs.length} / ${BIGBAGS_POR_LOTE} bigbags</span>
           <span class="lote-fecha">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
             ${g.fechaReciente} · ${g.horaReciente}
@@ -665,9 +665,10 @@
     });
   }
 
-  // Detalle de un lote: si ya completó las 25 tn muestra el promedio general
-  // de análisis; siempre muestra la lista de bigbags cargados hasta el
-  // momento (completo o no), cada uno tocable para ver su ficha individual.
+  // Detalle de un lote: si ya completó los bigbags necesarios muestra el
+  // promedio general de análisis; siempre muestra la lista de bigbags
+  // cargados hasta el momento (completo o no), cada uno tocable para ver su
+  // ficha individual.
   function abrirModalLote(g){
     const body = document.getElementById('modal-body');
     const campo = (k,v) => `<div class="modal-field"><span class="k">${k}</span><span class="v">${v}</span></div>`;
@@ -675,16 +676,17 @@
       <div class="lote-promedio-box">
         <div class="lote-promedio-titulo">Análisis generales (promedio de ${g.bbs.length} bigbags)</div>
         ${campo('Pureza promedio', g.promedioPureza!=null ? g.promedioPureza.toFixed(1)+'%' : '—')}
-        ${campo('Temperatura promedio', g.promedioTemperatura!=null ? g.promedioTemperatura.toFixed(1)+'°C' : '—')}
+        ${campo('Temp. ambiente promedio', g.promedioTemperaturaAmbiente!=null ? g.promedioTemperaturaAmbiente.toFixed(1)+'°C' : '—')}
+        ${campo('Temp. de grano promedio', g.promedioTemperaturaGrano!=null ? g.promedioTemperaturaGrano.toFixed(1)+'°C' : '—')}
         ${campo('Humedad promedio', g.promedioHumedad!=null ? g.promedioHumedad.toFixed(1)+'%' : '—')}
       </div>` : '';
     body.innerHTML = `
       <div class="modal-title">Lote ${g.lote}</div>
       <div class="modal-subtitle">
         <span class="badge ${g.completo?'completo':'en-curso'}">${g.completo?'Completo':'En curso'}</span>
-        · ${g.toneladas.toFixed(1)} / ${LOTE_META_TON} tn · ${g.bbs.length} bigbag${g.bbs.length===1?'':'s'}
+        · ${g.bbs.length} / ${BIGBAGS_POR_LOTE} bigbags
       </div>
-      ${!g.completo ? '<div class="error-msg" style="display:block;background:#eaf2fc;color:var(--series-1);border-color:var(--series-1);">Este lote todavía está en curso — faltan '+(LOTE_META_TON-g.toneladas).toFixed(1)+' tn para completar las 25 tn y ver el análisis general.</div>' : ''}
+      ${!g.completo ? '<div class="error-msg" style="display:block;background:#eaf2fc;color:var(--series-1);border-color:var(--series-1);">Este lote todavía está en curso — faltan '+(BIGBAGS_POR_LOTE-g.bbs.length)+' bigbag(s) para completarlo y ver el análisis general.</div>' : ''}
       ${promedioBlock}
       <div class="turno-summary-title" style="margin:14px 0 8px;">Bigbags cargados</div>
       <div class="turno-detalle-list" id="lote-detalle-list"></div>
@@ -695,8 +697,8 @@
       item.type = 'button';
       item.className = 'turno-detalle-item';
       item.innerHTML = `
-        <div class="tdi-top"><span class="tdi-lote">${c.hora || '—'} · ${c.turno || '—'}</span><span class="tdi-hora">${c.fecha || '—'}</span></div>
-        <div class="tdi-bottom"><span>${c.producto || ''}</span><span class="tdi-ton">${(Number(c.toneladas)||0).toFixed(1)} tn</span></div>
+        <div class="tdi-top"><span class="tdi-lote">BB ${c.bb ?? '—'} · ${c.hora || '—'}</span><span class="tdi-hora">${c.fecha || '—'}</span></div>
+        <div class="tdi-bottom"><span>${c.producto || ''}</span><span class="tdi-ton">${c.micro || 'Sin dato'}</span></div>
       `;
       item.addEventListener('click', ()=> abrirModal(c));
       list.appendChild(item);
@@ -709,17 +711,18 @@
     const campo = (k,v) => `<div class="modal-field"><span class="k">${k}</span><span class="v">${v}</span></div>`;
     const pendiente = tieneEdicionPendiente(c.id);
     body.innerHTML = `
-      <div class="modal-title">Lote ${c.lote || 'Sin N° de lote'}</div>
+      <div class="modal-title">Lote ${c.lote || 'Sin N° de lote'} · BB ${c.bb ?? '—'}</div>
       <div class="modal-subtitle">${c.producto}</div>
       ${pendiente ? '<div class="error-msg" style="display:block;background:var(--warning-bg);color:#8a6300;border-color:#8a6300;">Este cambio todavía no se subió a la planilla — se subirá solo cuando haya conexión.</div>' : ''}
       ${campo('Fecha y hora', (c.fecha || '—') + ' · ' + (c.hora || '—'))}
       ${campo('Turno', c.turno || '—')}
-      ${campo('Toneladas', c.toneladas.toFixed(1)+' tn')}
-      ${campo('Pureza', c.pureza.toFixed(1)+'%')}
-      ${campo('Temperatura ambiente', c.temperatura!=null ? c.temperatura.toFixed(1)+'°C' : '—')}
-      ${campo('Humedad', c.humedad!=null ? c.humedad.toFixed(1)+'%' : '—')}
+      ${campo('N° de bigbag', c.bb ?? '—')}
+      ${campo('Pureza', c.pureza!=null ? c.pureza.toFixed(1)+'%' : '—')}
+      ${campo('Temperatura ambiente', c.temperaturaAmbiente!=null ? c.temperaturaAmbiente.toFixed(1)+'°C' : '—')}
+      ${campo('Temperatura de grano', c.temperaturaGrano!=null ? c.temperaturaGrano.toFixed(1)+'°C' : '—')}
+      ${campo('Humedad de grano', c.humedadGrano!=null ? c.humedadGrano.toFixed(1)+'%' : '—')}
       ${campo('Resultado Micro', `<span class="badge ${microBadgeClass(c.micro)}">${c.micro || 'Sin dato'}</span>`)}
-      ${campo('Operador', c.operador || '—')}
+      ${campo('Encargado', c.encargado || '—')}
       ${campo('Observaciones', c.obs || '—')}
       <button type="button" class="submit-btn" id="edit-micro-btn" style="margin-top:14px;">Editar resultado / observaciones</button>
     `;
