@@ -94,10 +94,13 @@
   .lote-card:active{transform:translateY(0) scale(.98);}
   .skeleton-card{height:120px;border-radius:10px;border:1px solid var(--gridline);background:linear-gradient(90deg,var(--surface-2) 25%,var(--gridline) 37%,var(--surface-2) 63%);background-size:400% 100%;animation:shimmer 1.4s ease infinite;}
   @keyframes shimmer{0%{background-position:100% 50%;}100%{background-position:0% 50%;}}
-  .lote-card .lote-id{font-weight:700;font-size:14.5px;margin-bottom:4px;}
-  .lote-card .lote-producto{font-size:11.5px;color:var(--text-secondary);margin-bottom:8px;}
-  .lote-card .lote-ton{font-size:13px;font-weight:600;margin-bottom:2px;}
-  .lote-card .lote-fecha{font-size:11px;color:var(--text-muted);margin-bottom:8px;}
+  .lote-card .lote-eyebrow{font-size:9.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--series-1);margin-bottom:1px;}
+  .lote-card .lote-id{font-weight:800;font-size:17px;margin-bottom:2px;letter-spacing:-.01em;}
+  .lote-card .lote-producto{font-size:11.5px;color:var(--text-secondary);margin-bottom:10px;}
+  .lote-card .lote-stat{background:var(--surface-2);border:1px solid var(--gridline);border-radius:8px;padding:7px 9px;margin-bottom:8px;}
+  .lote-card .lote-ton{display:block;font-size:15px;font-weight:700;color:var(--text-primary);margin-bottom:3px;}
+  .lote-card .lote-fecha{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-muted);font-weight:600;}
+  .lote-card .lote-fecha svg{flex-shrink:0;color:var(--text-muted);}
 
   .badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
   .badge::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;}
@@ -365,12 +368,25 @@
     return getPendientes().some(p=>p.id===id);
   }
 
+  // Convierte fecha "DD/MM/AAAA" + hora "HH:MM" en una clave ordenable
+  // (AAAAMMDDHHMM). Antes se ordenaba comparando el texto tal cual, lo que
+  // rompía el orden apenas cambiaba de mes (ej: "27/07" quedaba "después"
+  // de "05/08" por comparación de texto, no de fecha real).
+  function claveOrden(c){
+    const partes = String(c.fecha||'').split('/');
+    if(partes.length!==3) return String(c.fecha||'') + String(c.hora||'');
+    const [dd,mm,yyyy] = partes;
+    const hora = String(c.hora||'00:00').replace(':','').padStart(4,'0');
+    return `${yyyy.padStart(4,'0')}${mm.padStart(2,'0')}${dd.padStart(2,'0')}${hora}`;
+  }
+
   function renderLotesGrid(datos){
     const cont = document.getElementById('lotes-grid');
     const meta = document.getElementById('lotes-meta');
     cont.innerHTML = '';
-    const ordenado = [...datos].sort((a,b)=> (b.fecha+b.hora).localeCompare(a.fecha+a.hora));
-    meta.textContent = ordenado.length + ' lote(s) cargados. Tocá uno para ver el detalle completo.';
+    // Siempre el lote más nuevo arriba (fecha y hora reales, no alfabético).
+    const ordenado = [...datos].sort((a,b)=> claveOrden(b).localeCompare(claveOrden(a)));
+    meta.textContent = ordenado.length + ' lote(s) cargados · el más nuevo arriba. Tocá uno para ver el detalle completo.';
     if(ordenado.length===0){
       cont.innerHTML = '<div class="empty-state">Todavía no hay lotes cargados en la planilla.</div>';
       return;
@@ -381,10 +397,16 @@
       card.className = 'lote-card';
       card.style.animationDelay = Math.min(idx*30,300) + 'ms';
       const pendiente = tieneEdicionPendiente(c.id);
-      card.innerHTML = `<div class="lote-id">${c.lote || 'Sin N° de lote'}</div>
+      card.innerHTML = `<div class="lote-eyebrow">Lote</div>
+        <div class="lote-id">${c.lote || 'Sin N°'}</div>
         <div class="lote-producto">${c.producto}</div>
-        <div class="lote-ton">${c.toneladas.toFixed(1)} tn</div>
-        <div class="lote-fecha">${c.fecha} · ${c.hora}</div>
+        <div class="lote-stat">
+          <span class="lote-ton">${c.toneladas.toFixed(1)} tn</span>
+          <span class="lote-fecha">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            ${c.fecha || '—'} · ${c.hora || '—'}
+          </span>
+        </div>
         <span class="badge ${microBadgeClass(c.micro)}">${c.micro || 'Sin dato'}</span>
         ${pendiente ? '<div style="margin-top:6px;"><span class="badge sync-pendiente">Edición sin subir</span></div>' : ''}`;
       card.addEventListener('click', ()=> abrirModal(c));
@@ -400,8 +422,7 @@
       <div class="modal-title">Lote ${c.lote || 'Sin N° de lote'}</div>
       <div class="modal-subtitle">${c.producto}</div>
       ${pendiente ? '<div class="error-msg" style="display:block;background:var(--warning-bg);color:#8a6300;border-color:#8a6300;">Este cambio todavía no se subió a la planilla — se subirá solo cuando haya conexión.</div>' : ''}
-      ${campo('Fecha', c.fecha || '—')}
-      ${campo('Hora', c.hora || '—')}
+      ${campo('Fecha y hora', (c.fecha || '—') + ' · ' + (c.hora || '—'))}
       ${campo('Turno', c.turno || '—')}
       ${campo('Toneladas', c.toneladas.toFixed(1)+' tn')}
       ${campo('Pureza', c.pureza.toFixed(1)+'%')}
