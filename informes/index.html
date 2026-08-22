@@ -140,13 +140,23 @@
   .turno-summary-title{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.03em;}
   .turno-summary-title svg{color:var(--series-1);flex-shrink:0;}
   .turno-summary-date{font-size:11.5px;color:var(--text-muted);font-weight:600;white-space:nowrap;}
-  .turno-summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
-  .turno-card{background:var(--surface-2);border:1px solid var(--gridline);border-radius:9px;padding:10px 6px;text-align:center;}
+  .turno-summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;}
+  .turno-card{appearance:none;font-family:inherit;background:var(--surface-2);border:1px solid var(--gridline);border-radius:9px;padding:10px 6px;text-align:center;cursor:pointer;transition:box-shadow .2s ease,border-color .2s ease,transform .15s ease;}
+  .turno-card:hover{border-color:var(--series-1);box-shadow:var(--shadow-sm);transform:translateY(-1px);}
+  .turno-card:active{transform:translateY(0) scale(.98);}
   .turno-card-head{display:flex;align-items:center;justify-content:center;gap:4px;font-size:10.5px;font-weight:700;color:var(--text-secondary);margin-bottom:6px;}
   .turno-card-head svg{color:var(--series-1);flex-shrink:0;}
   .turno-card-ton{font-size:15px;font-weight:800;color:var(--text-primary);margin-bottom:2px;letter-spacing:-.01em;}
   .turno-card-lotes{font-size:10.5px;color:var(--text-muted);font-weight:600;}
   .turno-summary-total{margin-top:10px;padding-top:10px;border-top:1px dashed var(--gridline);font-size:11.5px;color:var(--text-muted);text-align:center;}
+
+  .turno-detalle-list{display:flex;flex-direction:column;gap:8px;margin-top:2px;}
+  .turno-detalle-item{appearance:none;font-family:inherit;display:block;width:100%;text-align:left;background:var(--surface-2);border:1px solid var(--gridline);border-radius:9px;padding:9px 11px;cursor:pointer;transition:border-color .15s ease, box-shadow .15s ease;}
+  .turno-detalle-item:hover{border-color:var(--series-1);box-shadow:var(--shadow-sm);}
+  .tdi-top{display:flex;justify-content:space-between;align-items:baseline;font-size:13.5px;font-weight:700;color:var(--text-primary);margin-bottom:3px;}
+  .tdi-hora{font-size:11.5px;color:var(--text-muted);font-weight:600;}
+  .tdi-bottom{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--text-secondary);}
+  .tdi-ton{font-weight:700;color:var(--text-primary);}
 </style>
 </head>
 <body>
@@ -435,16 +445,34 @@
   }
 
   // ---------- resumen por turno (hoy) ----------
-  // Base flexible: hoy separamos por Mañana/Tarde/Noche con toneladas y
-  // cantidad de lotes, que es lo que casi seguro van a querer ver sea cual
-  // sea el formato final del informe por turno. Fácil de ajustar después
-  // (agregar detalle por hora, otro rango de fechas, etc.) sin rehacer nada.
-  const TURNOS_ORDEN = ['Mañana', 'Tarde', 'Noche'];
-  const TURNO_ICONOS = {
-    'Mañana': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
-    'Tarde': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 3v9M6.3 7.3l1.4 1.4M17.7 7.3l-1.4 1.4M2 18h20M5 18a7 7 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-    'Noche': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 14.5A8 8 0 119.5 4 6.5 6.5 0 0020 14.5z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>'
-  };
+  // Base flexible: en vez de asumir una cantidad fija de turnos, agrupamos
+  // por los nombres de turno que realmente aparecen hoy en la planilla (los
+  // que carga producción). Así se adapta solo sean 2, 3 o los que sean, sin
+  // tener que tocar el código si cambia la cantidad o el nombre de turnos.
+  function iconoTurno(nombre){
+    const n = String(nombre||'').toLowerCase();
+    if(/noche/.test(n)) return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 14.5A8 8 0 119.5 4 6.5 6.5 0 0020 14.5z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>';
+    if(/tarde/.test(n)) return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 3v9M6.3 7.3l1.4 1.4M17.7 7.3l-1.4 1.4M2 18h20M5 18a7 7 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+  }
+
+  function horaAMinutos(hora){
+    const m = String(hora||'').match(/^(\d{1,2}):(\d{2})/);
+    if(!m) return 24*60; // sin hora reconocible: se ordena al final
+    return parseInt(m[1],10)*60 + parseInt(m[2],10);
+  }
+
+  // Orden lógico del turno dentro del día (no alfabético): un turno nocturno
+  // suele tener horas tanto muy tempranas (00:00-06:00) como muy tardías
+  // (22:00-24:00), así que ordenar solo por la hora más temprana lo pondría
+  // antes que el turno diurno por error. Por eso el nombre manda primero.
+  function rangoTurno(nombre){
+    const n = String(nombre||'').toLowerCase();
+    if(/mañana|manana|diurno|^d[ií]a$/.test(n)) return 0;
+    if(/tarde/.test(n)) return 1;
+    if(/noche|nocturno/.test(n)) return 2;
+    return 1.5; // nombre no reconocido: se ubica entre los diurnos y la noche
+  }
 
   function fechaHoyDDMMYYYY(){
     const d = new Date();
@@ -462,28 +490,45 @@
     if(dateEl) dateEl.textContent = hoy;
 
     const deHoy = datos.filter(c => String(c.fecha||'').trim() === hoy);
-    const porTurno = {};
-    TURNOS_ORDEN.forEach(t => porTurno[t] = { toneladas: 0, lotes: 0 });
-    let sinTurno = 0;
 
+    // Un grupo por cada nombre de turno distinto que aparezca hoy (sin
+    // suponer cuáles ni cuántos son), ordenados por la hora más temprana de
+    // cada grupo para que el turno de la mañana/día quede antes que el de
+    // la noche sin tener que conocer los nombres de antemano.
+    const grupos = new Map();
+    let sinTurno = 0;
     deHoy.forEach(c=>{
+      const nombre = String(c.turno||'').trim();
       const ton = Number(c.toneladas) || 0;
-      if(c.turno && porTurno[c.turno]){
-        porTurno[c.turno].toneladas += ton;
-        porTurno[c.turno].lotes += 1;
-      } else {
-        sinTurno += 1;
-      }
+      if(!nombre){ sinTurno += 1; return; }
+      if(!grupos.has(nombre)) grupos.set(nombre, { toneladas: 0, lotes: [], primeraHora: horaAMinutos(c.hora) });
+      const g = grupos.get(nombre);
+      g.toneladas += ton;
+      g.lotes.push(c);
+      g.primeraHora = Math.min(g.primeraHora, horaAMinutos(c.hora));
+    });
+    const ordenados = [...grupos.entries()].sort((a,b)=>{
+      const ra = rangoTurno(a[0]), rb = rangoTurno(b[0]);
+      return ra !== rb ? ra - rb : a[1].primeraHora - b[1].primeraHora;
     });
 
-    grid.innerHTML = TURNOS_ORDEN.map(t=>{
-      const d = porTurno[t];
-      return `<div class="turno-card">
-        <div class="turno-card-head">${TURNO_ICONOS[t]}<span>${t}</span></div>
-        <div class="turno-card-ton">${d.toneladas.toFixed(1)} tn</div>
-        <div class="turno-card-lotes">${d.lotes} lote${d.lotes===1?'':'s'}</div>
-      </div>`;
-    }).join('');
+    grid.innerHTML = '';
+    if(!ordenados.length){
+      grid.innerHTML = '<div class="empty-state" style="padding:4px 0;">Todavía no hay lotes de hoy con turno cargado.</div>';
+    } else {
+      // Cada tarjeta se puede tocar para ver el detalle de los lotes de ese
+      // turno en el día (número de lote, hora y toneladas de cada uno).
+      ordenados.forEach(([nombre, d])=>{
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.className = 'turno-card';
+        card.innerHTML = `<div class="turno-card-head">${iconoTurno(nombre)}<span>${nombre}</span></div>
+          <div class="turno-card-ton">${d.toneladas.toFixed(1)} tn</div>
+          <div class="turno-card-lotes">${d.lotes.length} lote${d.lotes.length===1?'':'s'} · tocá para ver el detalle</div>`;
+        card.addEventListener('click', ()=> abrirModalTurno(nombre, hoy, d.lotes));
+        grid.appendChild(card);
+      });
+    }
 
     if(totalEl){
       if(!deHoy.length){
@@ -494,6 +539,32 @@
           + (sinTurno ? ` · ${sinTurno} sin turno asignado` : '');
       }
     }
+  }
+
+  // Detalle de un turno: lista de los lotes que lo componen ese día, cada
+  // uno tocable para abrir su ficha completa (reutiliza el modal de lote).
+  function abrirModalTurno(nombre, fecha, lotes){
+    const body = document.getElementById('modal-body');
+    const ordenadosLotes = [...lotes].sort((a,b)=> horaAMinutos(a.hora) - horaAMinutos(b.hora));
+    const totalTon = lotes.reduce((a,c)=> a + (Number(c.toneladas)||0), 0);
+    body.innerHTML = `
+      <div class="modal-title">Turno ${nombre}</div>
+      <div class="modal-subtitle">${fecha} · ${lotes.length} lote${lotes.length===1?'':'s'} · ${totalTon.toFixed(1)} tn</div>
+      <div class="turno-detalle-list" id="turno-detalle-list"></div>
+    `;
+    const list = document.getElementById('turno-detalle-list');
+    ordenadosLotes.forEach(c=>{
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'turno-detalle-item';
+      item.innerHTML = `
+        <div class="tdi-top"><span class="tdi-lote">Lote ${c.lote || 'Sin N°'}</span><span class="tdi-hora">${c.hora || '—'}</span></div>
+        <div class="tdi-bottom"><span>${c.producto || ''}</span><span class="tdi-ton">${(Number(c.toneladas)||0).toFixed(1)} tn</span></div>
+      `;
+      item.addEventListener('click', ()=> abrirModal(c));
+      list.appendChild(item);
+    });
+    document.getElementById('lote-modal').classList.add('visible');
   }
 
   function renderLotesGrid(datos){
