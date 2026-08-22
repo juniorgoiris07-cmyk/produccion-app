@@ -474,11 +474,19 @@
   // función entiende ambos y devuelve siempre {anio,mes,dia}, para no
   // depender de a qué formato haya salido la celda.
   function fechaPartes_(f){
-    const s = String(f||'').trim();
+    // Se saca cualquier espacio pegado a los separadores para bancarse
+    // variantes como "14 - 08 - 26" (con espacios) además de "14-08-26".
+    const s = String(f||'').trim().replace(/\s*([/\-])\s*/g, '$1');
     let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/); // AAAA-MM-DD
     if(m) return { anio:m[1], mes:m[2].padStart(2,'0'), dia:m[3].padStart(2,'0') };
     m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/); // DD/MM/AAAA
     if(m) return { anio:m[3], mes:m[2].padStart(2,'0'), dia:m[1].padStart(2,'0') };
+    m = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/); // DD-MM-AAAA
+    if(m) return { anio:m[3], mes:m[2].padStart(2,'0'), dia:m[1].padStart(2,'0') };
+    m = s.match(/^(\d{1,2})-(\d{1,2})-(\d{2})$/); // DD-MM-AA (año de 2 cifras)
+    if(m) return { anio:String(2000+Number(m[3])), mes:m[2].padStart(2,'0'), dia:m[1].padStart(2,'0') };
+    m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/); // DD/MM/AA (año de 2 cifras)
+    if(m) return { anio:String(2000+Number(m[3])), mes:m[2].padStart(2,'0'), dia:m[1].padStart(2,'0') };
     return null;
   }
 
