@@ -115,6 +115,15 @@
   .badge.pendiente{background:var(--warning-bg);color:#8a6300;}
   .badge.sync-pendiente{background:var(--warning-bg);color:#8a6300;animation:pulseWarn 1.6s ease-in-out infinite;}
   @keyframes pulseWarn{0%,100%{opacity:1;}50%{opacity:.55;}}
+  .badge.completo{background:var(--good-bg);color:var(--good);}
+  .badge.en-curso{background:#eaf2fc;color:var(--series-1);}
+
+  .lote-progress{height:5px;border-radius:3px;background:var(--gridline);overflow:hidden;margin:2px 0 8px;}
+  .lote-progress-fill{height:100%;background:var(--series-1);border-radius:3px;transition:width .3s ease;}
+  .lote-progress-fill.completo{background:var(--good);}
+  .lote-promedio-box{background:var(--good-bg);border:1px solid var(--good);border-radius:10px;padding:10px 12px;margin:12px 0;}
+  .lote-promedio-titulo{font-size:11.5px;font-weight:700;color:var(--good);text-transform:uppercase;letter-spacing:.03em;margin-bottom:4px;}
+  .lote-promedio-box .modal-field{border-bottom-color:rgba(12,163,12,0.18);}
 
   .modal-overlay{position:fixed;inset:0;background:rgba(20,20,15,0.45);display:flex;align-items:center;justify-content:center;padding:20px;z-index:60;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .22s ease,visibility 0s linear .22s;}
   .modal-overlay.visible{opacity:1;visibility:visible;pointer-events:auto;transition:opacity .22s ease,visibility 0s linear 0s;}
@@ -567,48 +576,132 @@
     document.getElementById('lote-modal').classList.add('visible');
   }
 
+  // ---------- agrupado de bigbags por lote ----------
+  // Cada fila de la planilla es un bigbag individual (su propio análisis y
+  // toneladas). Un lote junta varios bigbags con el mismo N° de lote hasta
+  // sumar las 25 tn; ahí se considera "Completo" y se puede ver el promedio
+  // de sus análisis. Antes de eso queda "En curso" — el jefe lo puede ver
+  // igual, con lo cargado hasta el momento.
+  const LOTE_META_TON = 25; // fácil de ajustar si el criterio cambia
+
+  function promedio_(bbs, campo){
+    const vals = bbs.map(b=>b[campo]).filter(v=> v!=null && !isNaN(v));
+    if(!vals.length) return null;
+    return vals.reduce((a,v)=>a+Number(v),0) / vals.length;
+  }
+
+  function agruparPorLote(datos){
+    const grupos = new Map();
+    datos.forEach(c=>{
+      const nombre = String(c.lote||'').trim();
+      if(!nombre) return; // bigbag sin N° de lote: no se puede agrupar
+      if(!grupos.has(nombre)) grupos.set(nombre, { lote: nombre, bbs: [] });
+      grupos.get(nombre).bbs.push(c);
+    });
+    return [...grupos.values()].map(g=>{
+      const toneladas = g.bbs.reduce((a,c)=> a + (Number(c.toneladas)||0), 0);
+      const ordenados = [...g.bbs].sort((a,b)=> claveOrden(a).localeCompare(claveOrden(b)));
+      const masReciente = ordenados[ordenados.length-1];
+      return {
+        lote: g.lote,
+        bbs: ordenados,
+        toneladas,
+        completo: toneladas >= LOTE_META_TON,
+        promedioPureza: promedio_(g.bbs,'pureza'),
+        promedioTemperatura: promedio_(g.bbs,'temperatura'),
+        promedioHumedad: promedio_(g.bbs,'humedad'),
+        productoReciente: masReciente.producto || '',
+        fechaReciente: masReciente.fecha || '—',
+        horaReciente: masReciente.hora || '—',
+        claveReciente: claveOrden(masReciente)
+      };
+    });
+  }
+
   function renderLotesGrid(datos){
     renderResumenTurno(datos);
     const cont = document.getElementById('lotes-grid');
     const meta = document.getElementById('lotes-meta');
     cont.innerHTML = '';
+
+    const grupos = agruparPorLote(datos);
     // Buscador: filtra por N° de lote o producto (no distingue mayúsculas/minúsculas).
     const termino = (document.getElementById('search-input')?.value || '').trim().toLowerCase();
     const filtrado = termino
-      ? datos.filter(c => String(c.lote||'').toLowerCase().includes(termino) || String(c.producto||'').toLowerCase().includes(termino))
-      : datos;
-    // Siempre el lote más nuevo arriba (fecha y hora reales, no alfabético).
-    const ordenado = [...filtrado].sort((a,b)=> claveOrden(b).localeCompare(claveOrden(a)));
+      ? grupos.filter(g => g.lote.toLowerCase().includes(termino) || g.bbs.some(c=> String(c.producto||'').toLowerCase().includes(termino)))
+      : grupos;
+    // Siempre el lote con actividad más nueva arriba (fecha y hora reales del último bigbag cargado).
+    const ordenado = [...filtrado].sort((a,b)=> b.claveReciente.localeCompare(a.claveReciente));
+
     meta.textContent = termino
-      ? `${ordenado.length} de ${datos.length} lote(s) · el más nuevo arriba.`
-      : ordenado.length + ' lote(s) cargados · el más nuevo arriba. Tocá uno para ver el detalle completo.';
+      ? `${ordenado.length} de ${grupos.length} lote(s) · el más nuevo arriba.`
+      : ordenado.length + ' lote(s) · el más nuevo arriba. Tocá uno para ver los bigbags y el análisis.';
     if(ordenado.length===0){
       cont.innerHTML = termino
         ? '<div class="empty-state">No se encontró ningún lote que coincida con la búsqueda.</div>'
-        : '<div class="empty-state">Todavía no hay lotes cargados en la planilla.</div>';
+        : '<div class="empty-state">Todavía no hay bigbags cargados en la planilla.</div>';
       return;
     }
-    ordenado.forEach((c,idx)=>{
+    ordenado.forEach((g,idx)=>{
       const card = document.createElement('button');
       card.type = 'button';
       card.className = 'lote-card';
       card.style.animationDelay = Math.min(idx*30,300) + 'ms';
-      const pendiente = tieneEdicionPendiente(c.id);
+      const pct = Math.min(100, Math.round((g.toneladas / LOTE_META_TON) * 100));
       card.innerHTML = `<div class="lote-eyebrow">Lote</div>
-        <div class="lote-id">${c.lote || 'Sin N°'}</div>
-        <div class="lote-producto">${c.producto}</div>
+        <div class="lote-id">${g.lote}</div>
+        <div class="lote-producto">${g.productoReciente} · ${g.bbs.length} bigbag${g.bbs.length===1?'':'s'}</div>
         <div class="lote-stat">
-          <span class="lote-ton">${c.toneladas.toFixed(1)} tn</span>
+          <span class="lote-ton">${g.toneladas.toFixed(1)} / ${LOTE_META_TON} tn</span>
           <span class="lote-fecha">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            ${c.fecha || '—'} · ${c.hora || '—'}
+            ${g.fechaReciente} · ${g.horaReciente}
           </span>
         </div>
-        <span class="badge ${microBadgeClass(c.micro)}">${c.micro || 'Sin dato'}</span>
-        ${pendiente ? '<div style="margin-top:6px;"><span class="badge sync-pendiente">Edición sin subir</span></div>' : ''}`;
-      card.addEventListener('click', ()=> abrirModal(c));
+        <div class="lote-progress"><div class="lote-progress-fill ${g.completo?'completo':''}" style="width:${pct}%"></div></div>
+        <span class="badge ${g.completo?'completo':'en-curso'}">${g.completo?'Completo':'En curso'}</span>`;
+      card.addEventListener('click', ()=> abrirModalLote(g));
       cont.appendChild(card);
     });
+  }
+
+  // Detalle de un lote: si ya completó las 25 tn muestra el promedio general
+  // de análisis; siempre muestra la lista de bigbags cargados hasta el
+  // momento (completo o no), cada uno tocable para ver su ficha individual.
+  function abrirModalLote(g){
+    const body = document.getElementById('modal-body');
+    const campo = (k,v) => `<div class="modal-field"><span class="k">${k}</span><span class="v">${v}</span></div>`;
+    const promedioBlock = g.completo ? `
+      <div class="lote-promedio-box">
+        <div class="lote-promedio-titulo">Análisis generales (promedio de ${g.bbs.length} bigbags)</div>
+        ${campo('Pureza promedio', g.promedioPureza!=null ? g.promedioPureza.toFixed(1)+'%' : '—')}
+        ${campo('Temperatura promedio', g.promedioTemperatura!=null ? g.promedioTemperatura.toFixed(1)+'°C' : '—')}
+        ${campo('Humedad promedio', g.promedioHumedad!=null ? g.promedioHumedad.toFixed(1)+'%' : '—')}
+      </div>` : '';
+    body.innerHTML = `
+      <div class="modal-title">Lote ${g.lote}</div>
+      <div class="modal-subtitle">
+        <span class="badge ${g.completo?'completo':'en-curso'}">${g.completo?'Completo':'En curso'}</span>
+        · ${g.toneladas.toFixed(1)} / ${LOTE_META_TON} tn · ${g.bbs.length} bigbag${g.bbs.length===1?'':'s'}
+      </div>
+      ${!g.completo ? '<div class="error-msg" style="display:block;background:#eaf2fc;color:var(--series-1);border-color:var(--series-1);">Este lote todavía está en curso — faltan '+(LOTE_META_TON-g.toneladas).toFixed(1)+' tn para completar las 25 tn y ver el análisis general.</div>' : ''}
+      ${promedioBlock}
+      <div class="turno-summary-title" style="margin:14px 0 8px;">Bigbags cargados</div>
+      <div class="turno-detalle-list" id="lote-detalle-list"></div>
+    `;
+    const list = document.getElementById('lote-detalle-list');
+    g.bbs.forEach(c=>{
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'turno-detalle-item';
+      item.innerHTML = `
+        <div class="tdi-top"><span class="tdi-lote">${c.hora || '—'} · ${c.turno || '—'}</span><span class="tdi-hora">${c.fecha || '—'}</span></div>
+        <div class="tdi-bottom"><span>${c.producto || ''}</span><span class="tdi-ton">${(Number(c.toneladas)||0).toFixed(1)} tn</span></div>
+      `;
+      item.addEventListener('click', ()=> abrirModal(c));
+      list.appendChild(item);
+    });
+    document.getElementById('lote-modal').classList.add('visible');
   }
 
   function abrirModal(c){
