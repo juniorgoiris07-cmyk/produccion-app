@@ -124,6 +124,9 @@
   .lote-promedio-box{background:var(--good-bg);border:1px solid var(--good);border-radius:10px;padding:10px 12px;margin:12px 0;}
   .lote-promedio-titulo{font-size:11.5px;font-weight:700;color:var(--good);text-transform:uppercase;letter-spacing:.03em;margin-bottom:4px;}
   .lote-promedio-box .modal-field{border-bottom-color:rgba(12,163,12,0.18);}
+  .lote-promedio-box.en-curso{background:#eaf2fc;border-color:var(--series-1);}
+  .lote-promedio-box.en-curso .lote-promedio-titulo{color:var(--series-1);}
+  .lote-promedio-box.en-curso .modal-field{border-bottom-color:rgba(42,120,214,0.18);}
 
   .modal-overlay{position:fixed;inset:0;background:rgba(20,20,15,0.45);display:flex;align-items:center;justify-content:center;padding:20px;z-index:60;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .22s ease,visibility 0s linear .22s;}
   .modal-overlay.visible{opacity:1;visibility:visible;pointer-events:auto;transition:opacity .22s ease,visibility 0s linear 0s;}
@@ -441,16 +444,41 @@
     return getPendientes().some(p=>p.id===id);
   }
 
-  // Convierte fecha "DD/MM/AAAA" + hora "HH:MM" en una clave ordenable
-  // (AAAAMMDDHHMM). Antes se ordenaba comparando el texto tal cual, lo que
-  // rompía el orden apenas cambiaba de mes (ej: "27/07" quedaba "después"
-  // de "05/08" por comparación de texto, no de fecha real).
+  // La planilla puede devolver la fecha en dos formatos: "AAAA-MM-DD" (así
+  // sale cuando la celda es una fecha real de Google Sheets, que es el caso
+  // normal) o "DD/MM/AAAA" (si alguna vez queda como texto suelto). Esta
+  // función entiende ambos y devuelve siempre {anio,mes,dia}, para no
+  // depender de a qué formato haya salido la celda.
+  function fechaPartes_(f){
+    const s = String(f||'').trim();
+    let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/); // AAAA-MM-DD
+    if(m) return { anio:m[1], mes:m[2].padStart(2,'0'), dia:m[3].padStart(2,'0') };
+    m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/); // DD/MM/AAAA
+    if(m) return { anio:m[3], mes:m[2].padStart(2,'0'), dia:m[1].padStart(2,'0') };
+    return null;
+  }
+
+  // Fecha en formato AAAA-MM-DD (comparable/ordenable como texto), para usar
+  // en comparaciones internas — nunca para mostrarle algo a la persona.
+  function fechaISO_(f){
+    const p = fechaPartes_(f);
+    return p ? `${p.anio}-${p.mes}-${p.dia}` : null;
+  }
+
+  // Fecha en formato DD/MM/AAAA, para mostrar en pantalla.
+  function fechaVisual(f){
+    const p = fechaPartes_(f);
+    return p ? `${p.dia}/${p.mes}/${p.anio}` : (f || '—');
+  }
+
+  // Convierte fecha + hora "HH:MM" en una clave ordenable (AAAAMMDDHHMM).
+  // Antes se ordenaba comparando el texto tal cual, lo que rompía el orden
+  // apenas cambiaba de mes o de formato de fecha.
   function claveOrden(c){
-    const partes = String(c.fecha||'').split('/');
-    if(partes.length!==3) return String(c.fecha||'') + String(c.hora||'');
-    const [dd,mm,yyyy] = partes;
+    const p = fechaPartes_(c.fecha);
     const hora = String(c.hora||'00:00').replace(':','').padStart(4,'0');
-    return `${yyyy.padStart(4,'0')}${mm.padStart(2,'0')}${dd.padStart(2,'0')}${hora}`;
+    if(!p) return String(c.fecha||'') + String(c.hora||'');
+    return `${p.anio}${p.mes}${p.dia}${hora}`;
   }
 
   // ---------- resumen por turno (hoy) ----------
@@ -483,11 +511,11 @@
     return 1.5; // nombre no reconocido: se ubica entre los diurnos y la noche
   }
 
-  function fechaHoyDDMMYYYY(){
+  function fechaHoyISO(){
     const d = new Date();
     const dd = String(d.getDate()).padStart(2,'0');
     const mm = String(d.getMonth()+1).padStart(2,'0');
-    return `${dd}/${mm}/${d.getFullYear()}`;
+    return `${d.getFullYear()}-${mm}-${dd}`;
   }
 
   function renderResumenTurno(datos){
@@ -495,10 +523,12 @@
     if(!grid) return;
     const dateEl = document.getElementById('turno-summary-date');
     const totalEl = document.getElementById('turno-summary-total');
-    const hoy = fechaHoyDDMMYYYY();
-    if(dateEl) dateEl.textContent = hoy;
+    const hoyISO = fechaHoyISO();
+    if(dateEl) dateEl.textContent = fechaVisual(hoyISO);
 
-    const deHoy = datos.filter(c => String(c.fecha||'').trim() === hoy);
+    // Compara por fecha normalizada (no como texto suelto), así funciona
+    // sin importar si la celda vino como "AAAA-MM-DD" o "DD/MM/AAAA".
+    const deHoy = datos.filter(c => fechaISO_(c.fecha) === hoyISO);
 
     // Un grupo por cada nombre de turno distinto que aparezca hoy (sin
     // suponer cuáles ni cuántos son), ordenados por la hora más temprana de
@@ -532,7 +562,7 @@
         card.innerHTML = `<div class="turno-card-head">${iconoTurno(nombre)}<span>${nombre}</span></div>
           <div class="turno-card-ton">${d.bigbags.length} bigbag${d.bigbags.length===1?'':'s'}</div>
           <div class="turno-card-lotes">tocá para ver el detalle</div>`;
-        card.addEventListener('click', ()=> abrirModalTurno(nombre, hoy, d.bigbags));
+        card.addEventListener('click', ()=> abrirModalTurno(nombre, fechaVisual(hoyISO), d.bigbags));
         grid.appendChild(card);
       });
     }
@@ -550,6 +580,7 @@
   // Detalle de un turno: lista de los bigbags cargados ese día en ese turno,
   // cada uno tocable para abrir su ficha completa.
   function abrirModalTurno(nombre, fecha, bigbags){
+    modalVolverA = null; // se abre siempre desde la grilla principal
     const body = document.getElementById('modal-body');
     const ordenados = [...bigbags].sort((a,b)=> horaAMinutos(a.hora) - horaAMinutos(b.hora));
     body.innerHTML = `
@@ -566,7 +597,7 @@
         <div class="tdi-top"><span class="tdi-lote">Lote ${c.lote || 'Sin N°'} · BB ${c.bb ?? '—'}</span><span class="tdi-hora">${c.hora || '—'}</span></div>
         <div class="tdi-bottom"><span>${c.producto || ''}</span><span class="tdi-ton">${c.micro || 'Sin dato'}</span></div>
       `;
-      item.addEventListener('click', ()=> abrirModal(c));
+      item.addEventListener('click', ()=> abrirModal(c, ()=> abrirModalTurno(nombre, fecha, bigbags)));
       list.appendChild(item);
     });
     document.getElementById('lote-modal').classList.add('visible');
@@ -611,7 +642,7 @@
         promedioTemperaturaGrano: promedio_(g.bbs,'temperaturaGrano'),
         promedioHumedad: promedio_(g.bbs,'humedadGrano'),
         productoReciente: masReciente.producto || '',
-        fechaReciente: masReciente.fecha || '—',
+        fechaReciente: fechaVisual(masReciente.fecha),
         horaReciente: masReciente.hora || '—',
         claveReciente: claveOrden(masReciente)
       };
@@ -665,28 +696,29 @@
     });
   }
 
-  // Detalle de un lote: si ya completó los bigbags necesarios muestra el
-  // promedio general de análisis; siempre muestra la lista de bigbags
-  // cargados hasta el momento (completo o no), cada uno tocable para ver su
-  // ficha individual.
+  // Detalle de un lote: siempre muestra el resumen general (promedio de
+  // análisis de los bigbags cargados hasta el momento, se haya completado o
+  // no el lote — así se puede seguir de cerca cómo viene el lote mientras se
+  // sigue cargando) y la lista de bigbags, cada uno tocable para su ficha.
   function abrirModalLote(g){
+    modalVolverA = null; // se abre siempre desde la grilla principal
     const body = document.getElementById('modal-body');
     const campo = (k,v) => `<div class="modal-field"><span class="k">${k}</span><span class="v">${v}</span></div>`;
-    const promedioBlock = g.completo ? `
-      <div class="lote-promedio-box">
-        <div class="lote-promedio-titulo">Análisis generales (promedio de ${g.bbs.length} bigbags)</div>
+    const promedioBlock = `
+      <div class="lote-promedio-box ${g.completo?'':'en-curso'}">
+        <div class="lote-promedio-titulo">Resumen general (promedio de ${g.bbs.length} bigbag${g.bbs.length===1?'':'s'}${g.completo?'':' hasta ahora'})</div>
         ${campo('Pureza promedio', g.promedioPureza!=null ? g.promedioPureza.toFixed(1)+'%' : '—')}
         ${campo('Temp. ambiente promedio', g.promedioTemperaturaAmbiente!=null ? g.promedioTemperaturaAmbiente.toFixed(1)+'°C' : '—')}
         ${campo('Temp. de grano promedio', g.promedioTemperaturaGrano!=null ? g.promedioTemperaturaGrano.toFixed(1)+'°C' : '—')}
         ${campo('Humedad promedio', g.promedioHumedad!=null ? g.promedioHumedad.toFixed(1)+'%' : '—')}
-      </div>` : '';
+      </div>`;
     body.innerHTML = `
       <div class="modal-title">Lote ${g.lote}</div>
       <div class="modal-subtitle">
         <span class="badge ${g.completo?'completo':'en-curso'}">${g.completo?'Completo':'En curso'}</span>
         · ${g.bbs.length} / ${BIGBAGS_POR_LOTE} bigbags
       </div>
-      ${!g.completo ? '<div class="error-msg" style="display:block;background:#eaf2fc;color:var(--series-1);border-color:var(--series-1);">Este lote todavía está en curso — faltan '+(BIGBAGS_POR_LOTE-g.bbs.length)+' bigbag(s) para completarlo y ver el análisis general.</div>' : ''}
+      ${!g.completo ? '<div class="error-msg" style="display:block;background:#eaf2fc;color:var(--series-1);border-color:var(--series-1);">Este lote todavía está en curso — faltan '+(BIGBAGS_POR_LOTE-g.bbs.length)+' bigbag(s) para completarlo. El resumen de abajo se va a ir actualizando con cada bigbag nuevo.</div>' : ''}
       ${promedioBlock}
       <div class="turno-summary-title" style="margin:14px 0 8px;">Bigbags cargados</div>
       <div class="turno-detalle-list" id="lote-detalle-list"></div>
@@ -697,16 +729,17 @@
       item.type = 'button';
       item.className = 'turno-detalle-item';
       item.innerHTML = `
-        <div class="tdi-top"><span class="tdi-lote">BB ${c.bb ?? '—'} · ${c.hora || '—'}</span><span class="tdi-hora">${c.fecha || '—'}</span></div>
+        <div class="tdi-top"><span class="tdi-lote">BB ${c.bb ?? '—'} · ${c.hora || '—'}</span><span class="tdi-hora">${fechaVisual(c.fecha)}</span></div>
         <div class="tdi-bottom"><span>${c.producto || ''}</span><span class="tdi-ton">${c.micro || 'Sin dato'}</span></div>
       `;
-      item.addEventListener('click', ()=> abrirModal(c));
+      item.addEventListener('click', ()=> abrirModal(c, ()=> abrirModalLote(g)));
       list.appendChild(item);
     });
     document.getElementById('lote-modal').classList.add('visible');
   }
 
-  function abrirModal(c){
+  function abrirModal(c, volverA){
+    modalVolverA = volverA || null;
     const body = document.getElementById('modal-body');
     const campo = (k,v) => `<div class="modal-field"><span class="k">${k}</span><span class="v">${v}</span></div>`;
     const pendiente = tieneEdicionPendiente(c.id);
@@ -714,7 +747,7 @@
       <div class="modal-title">Lote ${c.lote || 'Sin N° de lote'} · BB ${c.bb ?? '—'}</div>
       <div class="modal-subtitle">${c.producto}</div>
       ${pendiente ? '<div class="error-msg" style="display:block;background:var(--warning-bg);color:#8a6300;border-color:#8a6300;">Este cambio todavía no se subió a la planilla — se subirá solo cuando haya conexión.</div>' : ''}
-      ${campo('Fecha y hora', (c.fecha || '—') + ' · ' + (c.hora || '—'))}
+      ${campo('Fecha y hora', fechaVisual(c.fecha) + ' · ' + (c.hora || '—'))}
       ${campo('Turno', c.turno || '—')}
       ${campo('N° de bigbag', c.bb ?? '—')}
       ${campo('Pureza', c.pureza!=null ? c.pureza.toFixed(1)+'%' : '—')}
@@ -728,7 +761,7 @@
     `;
     const editBtn = document.getElementById('edit-micro-btn');
     if(c.id){
-      editBtn.addEventListener('click', ()=> activarEdicionMicro(c));
+      editBtn.addEventListener('click', ()=> activarEdicionMicro(c, volverA));
     } else {
       editBtn.disabled = true;
       editBtn.title = 'No se puede editar: falta el identificador del registro.';
@@ -736,7 +769,7 @@
     document.getElementById('lote-modal').classList.add('visible');
   }
 
-  function activarEdicionMicro(c){
+  function activarEdicionMicro(c, volverA){
     const body = document.getElementById('modal-body');
     const opciones = MICRO_CONFIG
       .map(o=>`<option value="${o}" ${o===c.micro?'selected':''}>${o}</option>`).join('');
@@ -757,7 +790,7 @@
     `;
     document.getElementById('edit-obs').value = c.obs || '';
     document.getElementById('edit-save-btn').addEventListener('click', ()=> guardarEdicionMicro(c));
-    document.getElementById('edit-cancel-btn').addEventListener('click', ()=> abrirModal(c));
+    document.getElementById('edit-cancel-btn').addEventListener('click', ()=> abrirModal(c, volverA));
   }
 
   async function guardarEdicionMicro(c){
@@ -772,7 +805,7 @@
       await actualizarCarga(c.id, fields);
       c.micro = nuevoMicro;
       c.obs = nuevaObs;
-      cerrarModal();
+      cerrarModalDelTodo();
       renderLotesGrid(TODAS_LAS_CARGAS);
       showToast('Resultado actualizado');
     }catch(ex){
@@ -782,7 +815,7 @@
         encolarEdicion(c.id, fields);
         c.micro = nuevoMicro;
         c.obs = nuevaObs;
-        cerrarModal();
+        cerrarModalDelTodo();
         renderLotesGrid(TODAS_LAS_CARGAS);
         actualizarBannerConexion();
         showToast('Sin conexión: el cambio quedó guardado y se subirá solo cuando vuelva internet', false, true);
@@ -859,7 +892,25 @@
   window.addEventListener('offline', actualizarBannerConexion);
   setInterval(()=>{ if(navigator.onLine){ sincronizarPendientes(true); } actualizarBannerConexion(); }, 30000);
 
+  // Al tocar la ficha de un bigbag desde dentro del detalle de un lote o de
+  // un turno, cerrar (la X, Escape, o tocar afuera) vuelve a esa lista en
+  // vez de cerrar todo el modal — así no se pierde el contexto de "dónde
+  // estaba". modalVolverA guarda la función que arma esa vista anterior;
+  // si es null, cerrar sí cierra todo el modal.
+  let modalVolverA = null;
+
   function cerrarModal(){
+    if(modalVolverA){
+      const volver = modalVolverA;
+      modalVolverA = null;
+      volver();
+      return;
+    }
+    cerrarModalDelTodo();
+  }
+
+  function cerrarModalDelTodo(){
+    modalVolverA = null;
     document.getElementById('lote-modal').classList.remove('visible');
   }
 
