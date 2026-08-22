@@ -623,6 +623,7 @@
       ${campo('Turno', c.turno || '—')}
       ${campo('Toneladas', c.toneladas.toFixed(1)+' tn')}
       ${campo('Pureza', c.pureza.toFixed(1)+'%')}
+      ${campo('Temperatura ambiente', c.temperatura!=null ? c.temperatura.toFixed(1)+'°C' : '—')}
       ${campo('Humedad', c.humedad!=null ? c.humedad.toFixed(1)+'%' : '—')}
       ${campo('Resultado Micro', `<span class="badge ${microBadgeClass(c.micro)}">${c.micro || 'Sin dato'}</span>`)}
       ${campo('Operador', c.operador || '—')}
