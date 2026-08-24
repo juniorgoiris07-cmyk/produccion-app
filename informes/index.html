@@ -848,7 +848,7 @@
       item.type = 'button';
       item.className = 'turno-detalle-item';
       item.innerHTML = `
-        <div class="tdi-top"><span class="tdi-lote">Lote ${c.lote || 'Sin N°'} · BB ${c.bb ?? '—'}</span><span class="tdi-hora">${fechaVisual(c.fecha)} · ${c.hora || '—'}</span></div>
+        <div class="tdi-top"><span class="tdi-lote">Lote ${c.lote || 'Sin N°'} · BB ${c.bb ?? '—'}</span><span class="tdi-hora">${fechaVisual(c.fecha)}${c.hora ? ' · '+c.hora : ''}</span></div>
         <div class="tdi-bottom"><span>${c.producto || ''}${c.turno ? ' · '+c.turno : ''}</span><span class="tdi-ton">${c.micro || 'Sin dato'}</span></div>
       `;
       item.addEventListener('click', ()=> abrirModal(c, null));
@@ -922,7 +922,7 @@
       item.type = 'button';
       item.className = 'turno-detalle-item';
       item.innerHTML = `
-        <div class="tdi-top"><span class="tdi-lote">BB ${c.bb ?? '—'} · ${c.hora || '—'}</span><span class="tdi-hora">${fechaVisual(c.fecha)}</span></div>
+        <div class="tdi-top"><span class="tdi-lote">BB ${c.bb ?? '—'}</span><span class="tdi-hora">${fechaVisual(c.fecha)}${c.hora ? ' · '+c.hora : ''}</span></div>
         <div class="tdi-bottom"><span>${c.producto || ''}</span><span class="tdi-ton">${c.micro || 'Sin dato'}</span></div>
       `;
       item.addEventListener('click', ()=> abrirModal(c, ()=> abrirModalBloque(g, volverA)));
@@ -940,7 +940,7 @@
       <div class="modal-title">Lote ${c.lote || 'Sin N° de lote'} · BB ${c.bb ?? '—'}</div>
       <div class="modal-subtitle">${c.producto}</div>
       ${pendiente ? '<div class="error-msg" style="display:block;background:var(--warning-bg);color:#8a6300;border-color:#8a6300;">Este cambio todavía no se subió a la planilla — se subirá solo cuando haya conexión.</div>' : ''}
-      ${campo('Fecha y hora', fechaVisual(c.fecha) + ' · ' + (c.hora || '—'))}
+      ${campo('Fecha y hora', fechaVisual(c.fecha) + (c.hora ? ' · '+c.hora : ''))}
       ${campo('Turno', c.turno || '—')}
       ${campo('N° de bigbag', c.bb ?? '—')}
       ${campo('Pureza', c.pureza!=null ? c.pureza.toFixed(2)+'%' : '—')}
