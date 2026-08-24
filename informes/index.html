@@ -27,6 +27,7 @@
     --gridline:       #e1e0d9;
     --border:         rgba(11,11,11,0.10);
     --series-1:       #8A6D00;
+    --series-1-ink:   #5C4400;
     --good:           #0ca30c;
     --critical:       #d03b3b;
     --good-bg:        #e6f6e6;
@@ -56,7 +57,7 @@
   .appbar-icon img{display:block;height:26px;width:auto;}
   header.appbar h1{font-size:18px;margin:0;font-weight:700;letter-spacing:-.01em;color:#fff;}
   header.appbar p{margin:4px 0 0;color:rgba(255,255,255,0.78);font-size:12.5px;}
-  .settings-btn{width:36px;height:36px;border-radius:50%;border:none;background:rgba(255,255,255,0.16);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background-color .2s ease;}
+  .settings-btn{width:44px;height:44px;border-radius:50%;border:none;background:rgba(255,255,255,0.16);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background-color .2s ease;}
   .settings-btn:hover{background:rgba(255,255,255,0.28);}
   .settings-btn svg{transition:transform .4s ease;}
   .settings-btn:active svg{transform:rotate(70deg);}
@@ -85,7 +86,7 @@
 
   .search-wrap{position:relative;margin-bottom:12px;}
   .search-wrap .search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none;}
-  .search-input{width:100%;padding:10px 34px 10px 36px;border:1px solid var(--border);border-radius:9px;background:var(--surface-1);color:var(--text-primary);font-size:14px;font-family:inherit;transition:border-color .15s ease, box-shadow .15s ease;}
+  .search-input{width:100%;padding:13px 34px 13px 36px;border:1px solid var(--border);border-radius:9px;background:var(--surface-1);color:var(--text-primary);font-size:14px;font-family:inherit;transition:border-color .15s ease, box-shadow .15s ease;}
   .search-input:focus{outline:none;border-color:var(--series-1);box-shadow:0 0 0 3px rgba(var(--series-1-rgb),0.15);}
   .search-clear{position:absolute;right:5px;top:50%;transform:translateY(-50%);border:none;background:none;color:var(--text-muted);font-size:13px;cursor:pointer;padding:6px;line-height:1;border-radius:50%;transition:background-color .15s ease;}
   .search-clear:hover{background:var(--surface-2);}
@@ -100,7 +101,7 @@
 
   .vista-selector{display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;padding-bottom:2px;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
   .vista-selector::-webkit-scrollbar{display:none;}
-  .vista-btn{appearance:none;font-family:inherit;flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;padding:9px 14px;border:1px solid var(--gridline);border-radius:20px;background:var(--card);color:var(--text-secondary);font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;transition:background-color .15s ease,border-color .15s ease,color .15s ease;box-shadow:var(--shadow-sm);}
+  .vista-btn{appearance:none;font-family:inherit;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:9px 16px;border:1px solid var(--gridline);border-radius:20px;background:var(--card);color:var(--text-secondary);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;transition:background-color .15s ease,border-color .15s ease,color .15s ease;box-shadow:var(--shadow-sm);}
   .vista-btn:hover{border-color:var(--series-1);color:var(--text-primary);}
   .vista-btn.activa{background:var(--series-1);border-color:var(--series-1);color:#fff;}
 
@@ -111,7 +112,7 @@
   .lote-card:active{transform:translateY(0) scale(.98);}
   .skeleton-card{height:120px;border-radius:10px;border:1px solid var(--gridline);background:linear-gradient(90deg,var(--surface-2) 25%,var(--gridline) 37%,var(--surface-2) 63%);background-size:400% 100%;animation:shimmer 1.4s ease infinite;}
   @keyframes shimmer{0%{background-position:100% 50%;}100%{background-position:0% 50%;}}
-  .lote-card .lote-eyebrow{font-size:9.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--series-1);margin-bottom:1px;}
+  .lote-card .lote-eyebrow{font-size:9.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-muted);margin-bottom:1px;}
   .lote-card .lote-id{font-weight:800;font-size:17px;margin-bottom:2px;letter-spacing:-.01em;}
   .lote-card .lote-producto{font-size:11.5px;color:var(--text-secondary);margin-bottom:10px;}
   .lote-card .lote-stat{background:var(--surface-2);border:1px solid var(--gridline);border-radius:8px;padding:7px 9px;margin-bottom:8px;}
@@ -127,7 +128,7 @@
   .badge.sync-pendiente{background:var(--warning-bg);color:#8a6300;animation:pulseWarn 1.6s ease-in-out infinite;}
   @keyframes pulseWarn{0%,100%{opacity:1;}50%{opacity:.55;}}
   .badge.completo{background:var(--good-bg);color:var(--good);}
-  .badge.en-curso{background:var(--gold-bg);color:var(--series-1);}
+  .badge.en-curso{background:var(--gold-bg);color:var(--series-1-ink);}
 
   .lote-progress{height:5px;border-radius:3px;background:var(--gridline);overflow:hidden;margin:2px 0 8px;}
   .lote-progress-fill{height:100%;background:var(--series-1);border-radius:3px;transition:width .3s ease;}
@@ -136,7 +137,7 @@
   .lote-promedio-titulo{font-size:11.5px;font-weight:700;color:var(--good);text-transform:uppercase;letter-spacing:.03em;margin-bottom:4px;}
   .lote-promedio-box .modal-field{border-bottom-color:rgba(12,163,12,0.18);}
   .lote-promedio-box.en-curso{background:var(--gold-bg);border-color:var(--series-1);}
-  .lote-promedio-box.en-curso .lote-promedio-titulo{color:var(--series-1);}
+  .lote-promedio-box.en-curso .lote-promedio-titulo{color:var(--series-1-ink);}
   .lote-promedio-box.en-curso .modal-field{border-bottom-color:rgba(var(--series-1-rgb),0.18);}
 
   .modal-overlay{position:fixed;inset:0;background:rgba(20,20,15,0.45);display:flex;align-items:center;justify-content:center;padding:20px;z-index:60;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .22s ease,visibility 0s linear .22s;}
@@ -154,19 +155,19 @@
 
   .conn-banner{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:9px;font-size:12.5px;font-weight:600;margin-bottom:14px;animation:slideDown .25s ease;}
   .conn-banner.offline{background:var(--warning-bg);color:#8a6300;}
-  .conn-banner.pending{background:var(--gold-bg);color:var(--series-1);}
+  .conn-banner.pending{background:var(--gold-bg);color:var(--series-1-ink);}
   .conn-banner .dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0;}
   @keyframes slideDown{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:translateY(0);}}
 
   .turno-summary{background:var(--card);border:1px solid var(--gridline);border-radius:12px;padding:14px;margin-bottom:14px;box-shadow:var(--shadow-sm);animation:cardIn .35s ease both;}
-  .turno-summary-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;}
+  .turno-summary-head{display:flex;align-items:center;justify-content:space-between;gap:8px 12px;margin-bottom:10px;flex-wrap:wrap;}
   .turno-summary-title{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.03em;}
   .turno-summary-title svg{color:var(--series-1);flex-shrink:0;}
   .turno-summary-date{font-size:11.5px;color:var(--text-muted);font-weight:600;white-space:nowrap;}
   .turno-summary-datebox{display:flex;align-items:center;gap:6px;}
-  .turno-date-input{font-family:inherit;font-size:11.5px;font-weight:600;color:var(--text-primary);background:var(--surface-2);border:1px solid var(--gridline);border-radius:7px;padding:4px 6px;max-width:126px;}
-  .turno-hoy-btn{appearance:none;font-family:inherit;font-size:11px;font-weight:700;color:var(--series-1);background:transparent;border:1px solid var(--series-1);border-radius:7px;padding:4px 8px;cursor:pointer;white-space:nowrap;}
-  .turno-hoy-btn:hover{background:var(--series-1);color:#fff;}
+  .turno-date-input{font-family:inherit;font-size:12px;font-weight:600;color:var(--text-primary);background:var(--surface-2);border:1px solid var(--gridline);border-radius:7px;padding:8px 6px;max-width:126px;min-height:36px;}
+  .turno-hoy-btn{appearance:none;font-family:inherit;font-size:11.5px;font-weight:700;color:#fff;background:var(--series-1);border:1px solid var(--series-1);border-radius:7px;padding:8px 12px;cursor:pointer;white-space:nowrap;min-height:36px;}
+  .turno-hoy-btn:hover{filter:brightness(0.94);}
   .turno-summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;}
   .turno-card{appearance:none;font-family:inherit;background:var(--surface-2);border:1px solid var(--gridline);border-radius:9px;padding:10px 6px;text-align:center;cursor:pointer;transition:box-shadow .2s ease,border-color .2s ease,transform .15s ease;}
   .turno-card:hover{border-color:var(--series-1);box-shadow:var(--shadow-sm);transform:translateY(-1px);}
@@ -265,7 +266,7 @@
             <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/>
             <path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
           </svg>
-          <input type="text" id="search-input" class="search-input" placeholder="Buscar por N° de lote, producto o encargado..." autocomplete="off">
+          <input type="text" id="search-input" class="search-input" placeholder="Buscar lote, producto o encargado" autocomplete="off">
           <button type="button" class="search-clear hidden" id="search-clear" aria-label="Limpiar búsqueda">✕</button>
         </div>
 
@@ -915,7 +916,7 @@
         <span class="badge ${g.completo?'completo':'en-curso'}">${g.completo?'Completo':'En curso'}</span>
         · ${g.bbs.length} / ${BIGBAGS_POR_BLOQUE} bigbags
       </div>
-      ${!g.completo ? '<div class="error-msg" style="display:block;background:var(--gold-bg);color:var(--series-1);border-color:var(--series-1);">Este bloque todavía está en curso — faltan '+(BIGBAGS_POR_BLOQUE-g.bbs.length)+' bigbag(s) para completarlo. El resumen de abajo se va a ir actualizando con cada bigbag nuevo.</div>' : ''}
+      ${!g.completo ? '<div class="error-msg" style="display:block;background:var(--gold-bg);color:var(--series-1-ink);border-color:var(--series-1);">Este bloque todavía está en curso — faltan '+(BIGBAGS_POR_BLOQUE-g.bbs.length)+' bigbag(s) para completarlo. El resumen de abajo se va a ir actualizando con cada bigbag nuevo.</div>' : ''}
       ${promedioBlock}
       <div class="turno-summary-title" style="margin:14px 0 8px;">Bigbags cargados</div>
       <div class="turno-detalle-list" id="lote-detalle-list"></div>
