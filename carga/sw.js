@@ -4,7 +4,7 @@
 // (deben ir siempre a la red real) — la lógica de "guardar y reintentar
 // sin conexión" vive en index.html, no en el service worker.
 
-const CACHE_NAME = 'carga-produccion-v1';
+const CACHE_NAME = 'carga-produccion-v2';
 const ASSETS = [
   './',
   './index.html',

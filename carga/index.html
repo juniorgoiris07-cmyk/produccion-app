@@ -175,6 +175,7 @@
             <div class="field">
               <label>Fecha</label>
               <input type="date" id="f-fecha" required>
+              <div class="hint" id="f-fecha-hint" style="display:none;">Turno noche antes de las 6am: se usó la fecha en que arrancó el turno.</div>
             </div>
             <div class="field">
               <label>Hora</label>
@@ -627,8 +628,11 @@
     });
   }
 
+  let fechaTocadaManual = false;
+
   function prepararFormulario(){
-    document.getElementById('f-fecha').value = hoyISO();
+    fechaTocadaManual = false;
+    actualizarFechaSugerida();
     document.getElementById('f-hora').value = horaAhora();
     document.getElementById('f-lote').value = '';
     obtenerProximoLoteSugerido().then(sugerido=>{
@@ -643,6 +647,37 @@
     const d = new Date();
     return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
   }
+
+  // El turno noche cruza la medianoche (18hs a 6hs). Si un bigbag se carga
+  // ya pasada la medianoche (antes de las 6am) y el turno elegido es el de
+  // noche, en realidad pertenece a la producción del turno que arrancó AYER
+  // a la tarde — no a la de "hoy". Por eso la fecha se autocompleta con el
+  // día en que arrancó ese turno, en vez de con la fecha calendario actual.
+  // Así, en Informes, todo el turno noche queda agrupado bajo un solo día.
+  function esTurnoNoche(nombre){
+    return /noche|nocturno/i.test(String(nombre||''));
+  }
+  function fechaSugerida(){
+    const d = new Date();
+    if(esTurnoNoche(document.getElementById('f-turno').value) && d.getHours() < 6){
+      d.setDate(d.getDate() - 1);
+    }
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  function actualizarFechaSugerida(){
+    // No pisar una fecha que el operario ya tocó a mano.
+    if(fechaTocadaManual) return;
+    const campo = document.getElementById('f-fecha');
+    const hint = document.getElementById('f-fecha-hint');
+    campo.value = fechaSugerida();
+    if(hint) hint.style.display = (campo.value !== hoyISO()) ? 'block' : 'none';
+  }
+  document.getElementById('f-turno').addEventListener('change', actualizarFechaSugerida);
+  document.getElementById('f-fecha').addEventListener('input', ()=>{
+    fechaTocadaManual = true;
+    const hint = document.getElementById('f-fecha-hint');
+    if(hint) hint.style.display = 'none';
+  });
 
   document.getElementById('carga-form').addEventListener('submit', async function(e){
     e.preventDefault();
