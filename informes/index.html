@@ -160,22 +160,20 @@
   @keyframes slideDown{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:translateY(0);}}
 
   .turno-summary{background:var(--card);border:1px solid var(--gridline);border-radius:12px;padding:14px;margin-bottom:14px;box-shadow:var(--shadow-sm);animation:cardIn .35s ease both;}
-  .turno-summary-head{display:flex;align-items:center;justify-content:space-between;gap:8px 12px;margin-bottom:10px;flex-wrap:wrap;}
+  .turno-summary-head{display:flex;align-items:center;justify-content:space-between;gap:8px 12px;margin-bottom:10px;}
   .turno-summary-title{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.03em;}
   .turno-summary-title svg{color:var(--series-1);flex-shrink:0;}
-  .turno-summary-date{font-size:11.5px;color:var(--text-muted);font-weight:600;white-space:nowrap;}
-  .turno-summary-datebox{display:flex;align-items:center;gap:6px;}
-  .turno-date-input{font-family:inherit;font-size:12px;font-weight:600;color:var(--text-primary);background:var(--surface-2);border:1px solid var(--gridline);border-radius:7px;padding:8px 6px;max-width:126px;min-height:36px;}
-  .turno-hoy-btn{appearance:none;font-family:inherit;font-size:11.5px;font-weight:700;color:#fff;background:var(--series-1);border:1px solid var(--series-1);border-radius:7px;padding:8px 12px;cursor:pointer;white-space:nowrap;min-height:36px;}
-  .turno-hoy-btn:hover{filter:brightness(0.94);}
-  .turno-summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;}
-  .turno-card{appearance:none;font-family:inherit;background:var(--surface-2);border:1px solid var(--gridline);border-radius:9px;padding:10px 6px;text-align:center;cursor:pointer;transition:box-shadow .2s ease,border-color .2s ease,transform .15s ease;}
-  .turno-card:hover{border-color:var(--series-1);box-shadow:var(--shadow-sm);transform:translateY(-1px);}
-  .turno-card:active{transform:translateY(0) scale(.98);}
-  .turno-card-head{display:flex;align-items:center;justify-content:center;gap:4px;font-size:10.5px;font-weight:700;color:var(--text-secondary);margin-bottom:6px;}
-  .turno-card-head svg{color:var(--series-1);flex-shrink:0;}
-  .turno-card-ton{font-size:15px;font-weight:800;color:var(--text-primary);margin-bottom:2px;letter-spacing:-.01em;}
-  .turno-card-lotes{font-size:10.5px;color:var(--text-muted);font-weight:600;}
+  .turno-instancia-list{display:flex;flex-direction:column;gap:8px;}
+  .turno-instancia-item{appearance:none;font-family:inherit;display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:var(--surface-2);border:1px solid var(--gridline);border-radius:9px;padding:10px 11px;cursor:pointer;transition:border-color .15s ease, box-shadow .15s ease, transform .15s ease;}
+  .turno-instancia-item:hover{border-color:var(--series-1);box-shadow:var(--shadow-sm);}
+  .turno-instancia-item:active{transform:scale(.99);}
+  .tii-icon{flex-shrink:0;width:34px;height:34px;border-radius:9px;background:rgba(var(--series-1-rgb),.12);color:var(--series-1-ink);display:flex;align-items:center;justify-content:center;}
+  .tii-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+  .tii-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px;}
+  .tii-nombre{font-size:13px;font-weight:700;color:var(--text-primary);}
+  .tii-rango{font-size:11.5px;color:var(--text-muted);font-weight:600;white-space:nowrap;}
+  .tii-bottom{font-size:11.5px;color:var(--text-muted);font-weight:600;}
+  .tii-chevron{flex-shrink:0;color:var(--text-muted);}
   .turno-summary-total{margin-top:10px;padding-top:10px;border-top:1px dashed var(--gridline);font-size:11.5px;color:var(--text-muted);text-align:center;}
 
   .turno-detalle-list{display:flex;flex-direction:column;gap:8px;margin-top:2px;}
@@ -249,14 +247,10 @@
         <div class="turno-summary-head">
           <span class="turno-summary-title">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 3v18h18M7 15l4-4 3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            <span id="turno-summary-titletext">Resumen de hoy por turno</span>
+            <span id="turno-summary-titletext">Turnos recientes</span>
           </span>
-          <div class="turno-summary-datebox">
-            <input type="date" id="turno-summary-datepick" class="turno-date-input" aria-label="Elegir fecha del resumen por turno">
-            <button type="button" id="turno-summary-hoy-btn" class="turno-hoy-btn">Hoy</button>
-          </div>
         </div>
-        <div class="turno-summary-grid" id="turno-summary-grid"></div>
+        <div class="turno-instancia-list" id="turno-summary-grid"></div>
         <div class="turno-summary-total" id="turno-summary-total"></div>
       </div>
 
@@ -301,10 +295,6 @@
   const MICRO_CONFIG = ['Apto', 'No apto', 'Pendiente'];
   let TODAS_LAS_CARGAS = [];
   let ULTIMA_SYNC_TS = null; // cuándo se trajeron datos frescos de la planilla por última vez
-  // fechaSeleccionadaTurno: null significa "hoy". Si el jefe elige otra
-  // fecha con el selector, el resumen por turno se recalcula para ese día en
-  // vez del día actual, para poder revisar registros de días anteriores.
-  let fechaSeleccionadaTurno = null;
 
   // ---------- almacenamiento local ----------
   const WEBAPP_URL_KEY   = 'gs_webapp_url';
@@ -413,23 +403,6 @@
   // El estado inicial (cambiarVista(vistaActual)) se dispara al final del
   // script, junto con iniciar() — recién ahí están definidas todas las
   // funciones/constantes de renderizado que usa.
-
-  // ---------- selector de fecha del resumen por turno ----------
-  const turnoDateEl = document.getElementById('turno-summary-datepick');
-  const turnoHoyBtnEl = document.getElementById('turno-summary-hoy-btn');
-  if(turnoDateEl){
-    turnoDateEl.max = fechaHoyISO(); // no tiene sentido mirar fechas futuras
-    turnoDateEl.addEventListener('change', ()=>{
-      fechaSeleccionadaTurno = turnoDateEl.value || null;
-      renderResumenTurno(TODAS_LAS_CARGAS);
-    });
-  }
-  if(turnoHoyBtnEl){
-    turnoHoyBtnEl.addEventListener('click', ()=>{
-      fechaSeleccionadaTurno = null;
-      renderResumenTurno(TODAS_LAS_CARGAS);
-    });
-  }
 
   document.getElementById('setup-form').addEventListener('submit', async function(e){
     e.preventDefault();
@@ -579,25 +552,6 @@
     return parseInt(m[1],10)*60 + parseInt(m[2],10);
   }
 
-  // Orden lógico del turno dentro del día (no alfabético): un turno nocturno
-  // suele tener horas tanto muy tempranas (00:00-06:00) como muy tardías
-  // (22:00-24:00), así que ordenar solo por la hora más temprana lo pondría
-  // antes que el turno diurno por error. Por eso el nombre manda primero.
-  function rangoTurno(nombre){
-    const n = String(nombre||'').toLowerCase();
-    if(/mañana|manana|diurno|^d[ií]a$/.test(n)) return 0;
-    if(/tarde/.test(n)) return 1;
-    if(/noche|nocturno/.test(n)) return 2;
-    return 1.5; // nombre no reconocido: se ubica entre los diurnos y la noche
-  }
-
-  function fechaHoyISO(){
-    const d = new Date();
-    const dd = String(d.getDate()).padStart(2,'0');
-    const mm = String(d.getMonth()+1).padStart(2,'0');
-    return `${d.getFullYear()}-${mm}-${dd}`;
-  }
-
   // Diferencia en días de calendario entre dos fechas ISO "AAAA-MM-DD".
   function diffDiasISO_(isoA, isoB){
     if(!isoA || !isoB) return Infinity;
@@ -609,100 +563,120 @@
   // El turno noche cruza la medianoche (18 a 6hs aprox.), así que una carga
   // hecha ya pasada la medianoche queda con la fecha calendario del día
   // siguiente aunque sea parte del mismo turno que arrancó la tarde
-  // anterior. Para que el resumen por turno la cuente bajo el día en que
-  // arrancó ese turno (y no partida en dos), reconstruimos "tandas"
-  // continuas de turno noche: mientras no aparezca un bigbag de otro
-  // turno en el medio, toda la tanda cuenta como el día de su primer
-  // bigbag. Se ordena por N° de bigbag (correlativo, asignado al guardar)
-  // porque la Hora casi nunca viene cargada en la planilla, así que no es
-  // un dato confiable para esto. Devuelve un Map: carga -> "día operativo"
-  // (AAAA-MM-DD).
-  function calcularDiaOperativo_(datos){
-    const mapa = new Map();
+  // anterior. En vez de forzar todo dentro de "el resumen de un solo día"
+  // (lo que resultaba confuso: días con solo turno noche, otros con solo
+  // turno día), reconstruimos directamente una LISTA de instancias de
+  // turno reales, cada una con su propio rango de fechas — por ejemplo
+  // "Turno Noche · 24 → 25/08". Se ordena por N° de bigbag (correlativo,
+  // asignado al guardar) porque la Hora casi nunca viene cargada en la
+  // planilla, así que no es un dato confiable para esto.
+  // Devuelve un array de instancias: { turno, fechaInicio, fechaFin, bigbags[] }.
+  function calcularInstanciasTurno_(datos){
     const tieneBB = c => c.bb != null && c.bb !== '' && !isNaN(Number(c.bb));
     const conBB = datos.filter(tieneBB);
     const sinBB = datos.filter(c => !tieneBB(c));
     const ordenados = [...conBB].sort((a,b)=> Number(a.bb) - Number(b.bb));
-    let diaCorrida = null;
+
+    const instancias = [];
+    let actual = null;
+
     ordenados.forEach(c=>{
       const fISO = fechaISO_(c.fecha);
-      const esNoche = /noche|nocturno/i.test(String(c.turno||''));
-      if(esNoche && fISO){
-        // Si la tanda anterior quedó "abierta" hace más de un día (por
-        // ejemplo, no hubo turno día en el medio durante varias jornadas),
-        // se reinicia en vez de arrastrarla indefinidamente.
-        if(diaCorrida == null || diffDiasISO_(diaCorrida, fISO) > 1) diaCorrida = fISO;
-        mapa.set(c, diaCorrida);
+      const nombre = String(c.turno||'').trim() || 'Sin turno';
+      const esNoche = /noche|nocturno/i.test(nombre);
+      // El turno noche puede seguir al día calendario siguiente (cruza
+      // medianoche); el resto de los turnos solo se agrupan dentro del
+      // mismo día. Un gap negativo (fecha mal tipeada, ligeramente
+      // anterior a la de la tanda) no corta la tanda, para no partir en
+      // dos una tanda real por un simple error de tipeo.
+      const maxGap = esNoche ? 1 : 0;
+      let sigue = false;
+      if(actual && actual.turno === nombre && fISO){
+        const gap = diffDiasISO_(actual.fechaFin, fISO);
+        sigue = gap <= maxGap;
+      }
+      if(sigue){
+        actual.bigbags.push(c);
+        if(fISO && diffDiasISO_(actual.fechaFin, fISO) >= 0) actual.fechaFin = fISO;
       } else {
-        diaCorrida = null; // un bigbag de otro turno corta la tanda nocturna
-        mapa.set(c, fISO);
+        if(actual) instancias.push(actual);
+        actual = { turno: nombre, fechaInicio: fISO, fechaFin: fISO, bigbags: [c] };
       }
     });
-    sinBB.forEach(c=> mapa.set(c, fechaISO_(c.fecha)));
-    return mapa;
+    if(actual) instancias.push(actual);
+
+    sinBB.forEach(c=>{
+      const fISO = fechaISO_(c.fecha);
+      const nombre = String(c.turno||'').trim() || 'Sin turno';
+      instancias.push({ turno: nombre, fechaInicio: fISO, fechaFin: fISO, bigbags: [c] });
+    });
+
+    // Más recientes primero.
+    instancias.sort((a,b)=>{
+      const fa = a.fechaFin || a.fechaInicio || '';
+      const fb = b.fechaFin || b.fechaInicio || '';
+      if(fa !== fb) return fa < fb ? 1 : -1;
+      const maxBB = arr => arr.reduce((m,c)=> Math.max(m, Number(c.bb)||0), 0);
+      return maxBB(b.bigbags) - maxBB(a.bigbags);
+    });
+
+    return instancias;
+  }
+
+  // Formatea un rango de fechas ISO para mostrar, ej. "24 → 25/08/2026" si
+  // caen en el mismo mes/año, o la fecha sola si la instancia no cruzó día.
+  function rangoVisual_(iniISO, finISO){
+    if(!iniISO && !finISO) return 'Fecha desconocida';
+    if(!iniISO || !finISO || iniISO === finISO) return fechaVisual(iniISO || finISO);
+    const [ay,am,ad] = iniISO.split('-').map(Number);
+    const [by,bm,bd] = finISO.split('-').map(Number);
+    const dd = String(ad).padStart(2,'0'), df = String(bd).padStart(2,'0');
+    const mm = String(am).padStart(2,'0'), mf = String(bm).padStart(2,'0');
+    if(ay === by && am === bm) return `${dd} → ${df}/${mf}/${by}`;
+    if(ay === by) return `${dd}/${mm} → ${df}/${mf}/${by}`;
+    return `${fechaVisual(iniISO)} → ${fechaVisual(finISO)}`;
   }
 
   function renderResumenTurno(datos){
-    const grid = document.getElementById('turno-summary-grid');
-    if(!grid) return;
+    const cont = document.getElementById('turno-summary-grid');
+    if(!cont) return;
     const totalEl = document.getElementById('turno-summary-total');
-    const dateInput = document.getElementById('turno-summary-datepick');
-    const hoyISO = fechaHoyISO();
-    const objetivoISO = fechaSeleccionadaTurno || hoyISO;
-    const esHoy = objetivoISO === hoyISO;
 
-    if(dateInput && dateInput.value !== objetivoISO) dateInput.value = objetivoISO;
-    const tituloEl = document.getElementById('turno-summary-titletext');
-    if(tituloEl) tituloEl.textContent = esHoy ? 'Resumen de hoy por turno' : 'Resumen por turno';
+    const instancias = calcularInstanciasTurno_(datos);
+    const LIMITE_INSTANCIAS = 60; // sin buscador de fecha: se muestran las más recientes
+    const mostrar = instancias.slice(0, LIMITE_INSTANCIAS);
 
-    // "Día operativo": el turno noche que cruza la medianoche cuenta
-    // completo bajo el día en que arrancó (ver calcularDiaOperativo_).
-    const diaOperativoMap = calcularDiaOperativo_(datos);
-    const delDia = datos.filter(c => diaOperativoMap.get(c) === objetivoISO);
-
-    // Un grupo por cada nombre de turno distinto que aparezca ese día (sin
-    // suponer cuáles ni cuántos son), ordenados por la hora más temprana de
-    // cada grupo para que el turno de la mañana/día quede antes que el de
-    // la noche sin tener que conocer los nombres de antemano.
-    const grupos = new Map();
-    let sinTurno = 0;
-    delDia.forEach(c=>{
-      const nombre = String(c.turno||'').trim();
-      if(!nombre){ sinTurno += 1; return; }
-      if(!grupos.has(nombre)) grupos.set(nombre, { bigbags: [], primeraHora: horaAMinutos(c.hora) });
-      const g = grupos.get(nombre);
-      g.bigbags.push(c);
-      g.primeraHora = Math.min(g.primeraHora, horaAMinutos(c.hora));
-    });
-    const ordenados = [...grupos.entries()].sort((a,b)=>{
-      const ra = rangoTurno(a[0]), rb = rangoTurno(b[0]);
-      return ra !== rb ? ra - rb : a[1].primeraHora - b[1].primeraHora;
-    });
-
-    grid.innerHTML = '';
-    if(!ordenados.length){
-      grid.innerHTML = `<div class="empty-state" style="padding:4px 0;">Todavía no hay bigbags ${esHoy?'de hoy':'de ese día'} con turno cargado.</div>`;
+    cont.innerHTML = '';
+    if(!mostrar.length){
+      cont.innerHTML = `<div class="empty-state" style="padding:4px 0;">Todavía no hay bigbags con turno cargado.</div>`;
     } else {
-      // Cada tarjeta se puede tocar para ver el detalle de los bigbags de ese
-      // turno en el día (a qué lote pertenece cada uno, hora y N° de bigbag).
-      ordenados.forEach(([nombre, d])=>{
-        const card = document.createElement('button');
-        card.type = 'button';
-        card.className = 'turno-card';
-        card.innerHTML = `<div class="turno-card-head">${iconoTurno(nombre)}<span>${nombre}</span></div>
-          <div class="turno-card-ton">${formatTon(d.bigbags.length * TON_POR_BIGBAG)}</div>
-          <div class="turno-card-lotes">${d.bigbags.length} bigbag${d.bigbags.length===1?'':'s'} · tocá para ver el detalle</div>`;
-        card.addEventListener('click', ()=> abrirModalTurno(nombre, fechaVisual(objetivoISO), d.bigbags));
-        grid.appendChild(card);
+      // Cada fila es un turno real (con su propio rango de fechas), tocable
+      // para ver el detalle de los bigbags de esa tanda.
+      mostrar.forEach(inst=>{
+        const rango = rangoVisual_(inst.fechaInicio, inst.fechaFin);
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'turno-instancia-item';
+        item.innerHTML = `
+          <span class="tii-icon">${iconoTurno(inst.turno)}</span>
+          <span class="tii-info">
+            <span class="tii-top"><span class="tii-nombre">${inst.turno}</span><span class="tii-rango">${rango}</span></span>
+            <span class="tii-bottom">${inst.bigbags.length} bigbag${inst.bigbags.length===1?'':'s'} · ${formatTon(inst.bigbags.length * TON_POR_BIGBAG)}</span>
+          </span>
+          <svg class="tii-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        `;
+        item.addEventListener('click', ()=> abrirModalTurno(inst.turno, rango, inst.bigbags));
+        cont.appendChild(item);
       });
     }
 
     if(totalEl){
-      if(!delDia.length){
-        totalEl.textContent = esHoy ? 'Todavía no se cargó ningún bigbag hoy.' : 'No hay bigbags cargados ese día.';
+      if(!instancias.length){
+        totalEl.textContent = 'Todavía no se cargó ningún bigbag.';
+      } else if(instancias.length > LIMITE_INSTANCIAS){
+        totalEl.textContent = `Mostrando los ${LIMITE_INSTANCIAS} turnos más recientes de ${instancias.length} en total.`;
       } else {
-        totalEl.textContent = `Total del día: ${formatTon(delDia.length * TON_POR_BIGBAG)} (${delDia.length} bigbag(s))`
-          + (sinTurno ? ` · ${sinTurno} sin turno asignado` : '');
+        totalEl.textContent = `${instancias.length} turno${instancias.length===1?'':'s'} cargado${instancias.length===1?'':'s'} en total.`;
       }
     }
   }
