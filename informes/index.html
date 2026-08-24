@@ -900,10 +900,10 @@
     const promedioBlock = `
       <div class="lote-promedio-box ${g.completo?'':'en-curso'}">
         <div class="lote-promedio-titulo">Resumen general (promedio de ${g.bbs.length} bigbag${g.bbs.length===1?'':'s'}${g.completo?'':' hasta ahora'})</div>
-        ${campo('Pureza promedio', g.promedioPureza!=null ? g.promedioPureza.toFixed(1)+'%' : '—')}
-        ${campo('Temp. ambiente promedio', g.promedioTemperaturaAmbiente!=null ? g.promedioTemperaturaAmbiente.toFixed(1)+'°C' : '—')}
-        ${campo('Temp. de grano promedio', g.promedioTemperaturaGrano!=null ? g.promedioTemperaturaGrano.toFixed(1)+'°C' : '—')}
-        ${campo('Humedad promedio', g.promedioHumedad!=null ? g.promedioHumedad.toFixed(1)+'%' : '—')}
+        ${campo('Pureza promedio', g.promedioPureza!=null ? g.promedioPureza.toFixed(2)+'%' : '—')}
+        ${campo('Temp. ambiente promedio', g.promedioTemperaturaAmbiente!=null ? g.promedioTemperaturaAmbiente.toFixed(2)+'°C' : '—')}
+        ${campo('Temp. de grano promedio', g.promedioTemperaturaGrano!=null ? g.promedioTemperaturaGrano.toFixed(2)+'°C' : '—')}
+        ${campo('Humedad promedio', g.promedioHumedad!=null ? g.promedioHumedad.toFixed(2)+'%' : '—')}
       </div>`;
     body.innerHTML = `
       <div class="modal-title">Lote ${g.lote} · Bloque ${g.numeroBloque}</div>
@@ -943,10 +943,10 @@
       ${campo('Fecha y hora', fechaVisual(c.fecha) + ' · ' + (c.hora || '—'))}
       ${campo('Turno', c.turno || '—')}
       ${campo('N° de bigbag', c.bb ?? '—')}
-      ${campo('Pureza', c.pureza!=null ? c.pureza.toFixed(1)+'%' : '—')}
-      ${campo('Temperatura ambiente', c.temperaturaAmbiente!=null ? c.temperaturaAmbiente.toFixed(1)+'°C' : '—')}
-      ${campo('Temperatura de grano', c.temperaturaGrano!=null ? c.temperaturaGrano.toFixed(1)+'°C' : '—')}
-      ${campo('Humedad de grano', c.humedadGrano!=null ? c.humedadGrano.toFixed(1)+'%' : '—')}
+      ${campo('Pureza', c.pureza!=null ? c.pureza.toFixed(2)+'%' : '—')}
+      ${campo('Temperatura ambiente', c.temperaturaAmbiente!=null ? c.temperaturaAmbiente.toFixed(2)+'°C' : '—')}
+      ${campo('Temperatura de grano', c.temperaturaGrano!=null ? c.temperaturaGrano.toFixed(2)+'°C' : '—')}
+      ${campo('Humedad de grano', c.humedadGrano!=null ? c.humedadGrano.toFixed(2)+'%' : '—')}
       ${campo('Resultado Micro', `<span class="badge ${microBadgeClass(c.micro)}">${c.micro || 'Sin dato'}</span>`)}
       ${campo('Encargado', c.encargado || '—')}
       ${campo('Observaciones', c.obs || '—')}
