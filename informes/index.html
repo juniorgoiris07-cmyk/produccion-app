@@ -93,6 +93,12 @@
   @keyframes spin{to{transform:rotate(360deg);}}
   .empty-state{color:var(--text-muted);font-size:13px;padding:10px 0;}
 
+  .vista-selector{display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;padding-bottom:2px;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+  .vista-selector::-webkit-scrollbar{display:none;}
+  .vista-btn{appearance:none;font-family:inherit;flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;padding:9px 14px;border:1px solid var(--gridline);border-radius:20px;background:var(--card);color:var(--text-secondary);font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;transition:background-color .15s ease,border-color .15s ease,color .15s ease;box-shadow:var(--shadow-sm);}
+  .vista-btn:hover{border-color:var(--series-1);color:var(--text-primary);}
+  .vista-btn.activa{background:var(--series-1);border-color:var(--series-1);color:#fff;}
+
   .lotes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px;}
   @keyframes cardIn{from{opacity:0;transform:translateY(10px) scale(.97);}to{opacity:1;transform:translateY(0) scale(1);}}
   .lote-card{background:var(--card);border:1px solid var(--gridline);border-radius:10px;padding:12px;cursor:pointer;text-align:left;transition:box-shadow .2s ease,border-color .2s ease,transform .15s ease;box-shadow:var(--shadow-sm);position:relative;animation:cardIn .35s ease both;}
@@ -213,7 +219,7 @@
           </span>
           <div>
             <h1>Informes de Producción</h1>
-            <p>Lotes cargados en la planilla — tocá uno para ver el detalle</p>
+            <p>Elegí cómo ver los datos cargados en la planilla</p>
           </div>
         </div>
         <button class="settings-btn" onclick="resetWebAppUrl()" title="Configuración" aria-label="Configuración">
@@ -227,6 +233,13 @@
 
     <section>
       <div id="conn-banner" class="conn-banner hidden"></div>
+
+      <div class="vista-selector" id="vista-selector">
+        <button type="button" class="vista-btn" data-vista="turno">Turno</button>
+        <button type="button" class="vista-btn" data-vista="lote">Lote</button>
+        <button type="button" class="vista-btn" data-vista="bloque">Bloques de 25 Tons</button>
+        <button type="button" class="vista-btn" data-vista="bigbag">Detalle por BigBag</button>
+      </div>
 
       <div class="turno-summary" id="turno-summary">
         <div class="turno-summary-head">
@@ -243,27 +256,31 @@
         <div class="turno-summary-total" id="turno-summary-total"></div>
       </div>
 
-      <div class="search-wrap">
-        <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/>
-          <path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        </svg>
-        <input type="text" id="search-input" class="search-input" placeholder="Buscar por N° de lote o producto..." autocomplete="off">
-        <button type="button" class="search-clear hidden" id="search-clear" aria-label="Limpiar búsqueda">✕</button>
-      </div>
-
-      <div class="toolbar">
-        <div class="grid-meta" id="lotes-meta"></div>
-        <button class="export-btn" onclick="recargarDatos()">
-          <svg id="refresh-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M21 12a9 9 0 11-3-6.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            <path d="M21 3v6h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <div id="panel-datos">
+        <div class="search-wrap">
+          <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/>
+            <path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
           </svg>
-          Actualizar
-        </button>
-      </div>
+          <input type="text" id="search-input" class="search-input" placeholder="Buscar por N° de lote, producto o encargado..." autocomplete="off">
+          <button type="button" class="search-clear hidden" id="search-clear" aria-label="Limpiar búsqueda">✕</button>
+        </div>
 
-      <div class="lotes-grid" id="lotes-grid"></div>
+        <div class="toolbar">
+          <div class="grid-meta" id="lotes-meta"></div>
+          <button class="export-btn" onclick="recargarDatos()">
+            <svg id="refresh-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M21 12a9 9 0 11-3-6.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M21 3v6h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Actualizar
+          </button>
+        </div>
+
+        <div class="lotes-grid" id="vista-lote-grid"></div>
+        <div class="lotes-grid hidden" id="vista-bloque-grid"></div>
+        <div class="turno-detalle-list hidden" id="vista-bigbag-list"></div>
+      </div>
     </section>
   </div>
 
@@ -281,6 +298,10 @@
   const MICRO_CONFIG = ['Apto', 'No apto', 'Pendiente'];
   let TODAS_LAS_CARGAS = [];
   let ULTIMA_SYNC_TS = null; // cuándo se trajeron datos frescos de la planilla por última vez
+  // fechaSeleccionadaTurno: null significa "hoy". Si el jefe elige otra
+  // fecha con el selector, el resumen por turno se recalcula para ese día en
+  // vez del día actual, para poder revisar registros de días anteriores.
+  let fechaSeleccionadaTurno = null;
 
   // ---------- almacenamiento local ----------
   const WEBAPP_URL_KEY   = 'gs_webapp_url';
@@ -342,14 +363,16 @@
   // Para que la pantalla nunca se vea vacía mientras se traen los datos por
   // primera vez (antes se veía en blanco hasta tocar "Actualizar").
   function mostrarCargandoInicial(){
-    const cont = document.getElementById('lotes-grid');
-    if(cont && !cont.children.length){
-      let html = '';
-      for(let i=0;i<6;i++){
-        html += `<div class="skeleton-card" style="animation-delay:${i*60}ms"></div>`;
+    ['vista-lote-grid','vista-bloque-grid'].forEach(id=>{
+      const cont = document.getElementById(id);
+      if(cont && !cont.children.length){
+        let html = '';
+        for(let i=0;i<6;i++){
+          html += `<div class="skeleton-card" style="animation-delay:${i*60}ms"></div>`;
+        }
+        cont.innerHTML = html;
       }
-      cont.innerHTML = html;
-    }
+    });
   }
 
   // ---------- buscador de lotes ----------
@@ -365,6 +388,29 @@
     renderLotesGrid(TODAS_LAS_CARGAS);
     searchInputEl.focus();
   });
+
+  // ---------- selector de vista (Turno / Lote / Bloques de 25 Tons / BigBag) ----------
+  // vistaActual manda qué panel se ve: solo uno a la vez, para no saturar la
+  // pantalla con todo junto (ese era el problema que quería resolver esto).
+  let vistaActual = 'turno';
+
+  function cambiarVista(v){
+    vistaActual = v;
+    document.querySelectorAll('.vista-btn').forEach(b=> b.classList.toggle('activa', b.dataset.vista===v));
+    document.getElementById('turno-summary').classList.toggle('hidden', v!=='turno');
+    document.getElementById('panel-datos').classList.toggle('hidden', v==='turno');
+    document.getElementById('vista-lote-grid').classList.toggle('hidden', v!=='lote');
+    document.getElementById('vista-bloque-grid').classList.toggle('hidden', v!=='bloque');
+    document.getElementById('vista-bigbag-list').classList.toggle('hidden', v!=='bigbag');
+    renderLotesGrid(TODAS_LAS_CARGAS);
+  }
+
+  document.querySelectorAll('.vista-btn').forEach(b=>{
+    b.addEventListener('click', ()=> cambiarVista(b.dataset.vista));
+  });
+  // El estado inicial (cambiarVista(vistaActual)) se dispara al final del
+  // script, junto con iniciar() — recién ahí están definidas todas las
+  // funciones/constantes de renderizado que usa.
 
   // ---------- selector de fecha del resumen por turno ----------
   const turnoDateEl = document.getElementById('turno-summary-datepick');
@@ -550,11 +596,6 @@
     return `${d.getFullYear()}-${mm}-${dd}`;
   }
 
-  // fechaSeleccionadaTurno: null significa "hoy". Si el jefe elige otra
-  // fecha con el selector, este resumen se recalcula para ese día en vez
-  // del día actual, para poder revisar registros de días anteriores.
-  let fechaSeleccionadaTurno = null;
-
   function renderResumenTurno(datos){
     const grid = document.getElementById('turno-summary-grid');
     if(!grid) return;
@@ -645,18 +686,20 @@
     document.getElementById('lote-modal').classList.add('visible');
   }
 
-  // ---------- agrupado de bigbags por lote ----------
+  // ---------- agrupado de bigbags por lote / bloque de 25 tons ----------
   // Cada fila de la planilla es un bigbag individual (su propio análisis).
-  // Un lote junta varios bigbags con el mismo N° de lote hasta llegar a
-  // BIGBAGS_POR_LOTE; ahí se considera "Completo" y se puede ver el promedio
-  // de sus análisis. Antes de eso queda "En curso" — el jefe lo puede ver
-  // igual, con lo cargado hasta el momento.
+  // Un LOTE es simplemente un N° de lote — puede tener cualquier cantidad de
+  // bigbags, sin tope (esto se corrigió: antes se asumía mal que un lote se
+  // cerraba justo a las 25 tons).
+  // El control de calidad se hace por BLOQUE: dentro de cada lote, los
+  // bigbags se van juntando de a BIGBAGS_POR_BLOQUE (en el orden en que se
+  // cargaron) y cada bloque tiene su propio promedio de análisis. Un lote
+  // grande puede tener varios bloques completos más uno en curso.
   //
-  // NOTA: la planilla ya no tiene una columna de toneladas por bigbag — se
-  // asume que cada bigbag pesa 1 tonelada (el estándar habitual), por eso un
-  // lote de 25 tn se completa al llegar a 25 bigbags. Si ese supuesto no es
-  // correcto, este es el único número que hay que ajustar.
-  const BIGBAGS_POR_LOTE = 25;
+  // NOTA: la planilla no tiene una columna de toneladas por bigbag — se
+  // asume que cada bigbag pesa 1 tonelada (confirmado). Si eso cambia, este
+  // es el único número que hay que ajustar.
+  const BIGBAGS_POR_BLOQUE = 25;
   const TON_POR_BIGBAG = 1; // 1 bigbag = 1 tonelada, confirmado.
 
   function formatTon(ton){
@@ -669,25 +712,52 @@
     return vals.reduce((a,v)=>a+Number(v),0) / vals.length;
   }
 
-  function agruparPorLote(datos){
-    const grupos = new Map();
+  // Junta los bigbags de un mismo N° de lote, ordenados cronológicamente.
+  function bigbagsPorLote_(datos){
+    const porLote = new Map();
     datos.forEach(c=>{
       const nombre = String(c.lote||'').trim();
       if(!nombre) return; // bigbag sin N° de lote: no se puede agrupar
-      if(!grupos.has(nombre)) grupos.set(nombre, { lote: nombre, bbs: [] });
-      grupos.get(nombre).bbs.push(c);
+      if(!porLote.has(nombre)) porLote.set(nombre, []);
+      porLote.get(nombre).push(c);
     });
-    return [...grupos.values()].map(g=>{
-      const ordenados = [...g.bbs].sort((a,b)=> claveOrden(a).localeCompare(claveOrden(b)));
+    porLote.forEach((bbs, nombre)=>{
+      porLote.set(nombre, [...bbs].sort((a,b)=> claveOrden(a).localeCompare(claveOrden(b))));
+    });
+    return porLote;
+  }
+
+  // Arma el objeto de un bloque (hasta BIGBAGS_POR_BLOQUE bigbags de un
+  // mismo lote) con sus promedios de análisis.
+  function construirBloque_(lote, numeroBloque, grupo){
+    const masReciente = grupo[grupo.length-1];
+    return {
+      lote,
+      numeroBloque,
+      bbs: grupo,
+      completo: grupo.length >= BIGBAGS_POR_BLOQUE,
+      promedioPureza: promedio_(grupo,'pureza'),
+      promedioTemperaturaAmbiente: promedio_(grupo,'temperaturaAmbiente'),
+      promedioTemperaturaGrano: promedio_(grupo,'temperaturaGrano'),
+      promedioHumedad: promedio_(grupo,'humedadGrano'),
+      productoReciente: masReciente.producto || '',
+      fechaReciente: fechaVisual(masReciente.fecha),
+      horaReciente: masReciente.hora || '—',
+      claveReciente: claveOrden(masReciente)
+    };
+  }
+
+  // Vista "Lote": un card por N° de lote real, con el total de bigbags/tons
+  // cargados (sin tope) y cuántos bloques de 25 tons se armaron adentro.
+  function agruparPorLotes(datos){
+    const porLote = bigbagsPorLote_(datos);
+    return [...porLote.entries()].map(([nombre, ordenados])=>{
       const masReciente = ordenados[ordenados.length-1];
       return {
-        lote: g.lote,
+        lote: nombre,
         bbs: ordenados,
-        completo: g.bbs.length >= BIGBAGS_POR_LOTE,
-        promedioPureza: promedio_(g.bbs,'pureza'),
-        promedioTemperaturaAmbiente: promedio_(g.bbs,'temperaturaAmbiente'),
-        promedioTemperaturaGrano: promedio_(g.bbs,'temperaturaGrano'),
-        promedioHumedad: promedio_(g.bbs,'humedadGrano'),
+        bloquesCompletos: Math.floor(ordenados.length / BIGBAGS_POR_BLOQUE),
+        bigbagsSueltos: ordenados.length % BIGBAGS_POR_BLOQUE,
         productoReciente: masReciente.producto || '',
         fechaReciente: fechaVisual(masReciente.fecha),
         horaReciente: masReciente.hora || '—',
@@ -696,24 +766,48 @@
     });
   }
 
+  // Vista "Bloques de 25 Tons": todos los bloques de todos los lotes, en una
+  // sola lista plana (no importa a qué lote pertenece cada uno).
+  function agruparPorBloques(datos){
+    const porLote = bigbagsPorLote_(datos);
+    const bloques = [];
+    porLote.forEach((ordenados, nombre)=>{
+      for(let i=0; i<ordenados.length; i += BIGBAGS_POR_BLOQUE){
+        const grupo = ordenados.slice(i, i+BIGBAGS_POR_BLOQUE);
+        bloques.push(construirBloque_(nombre, Math.floor(i/BIGBAGS_POR_BLOQUE)+1, grupo));
+      }
+    });
+    return bloques;
+  }
+
+  // ---------- render: dispatcher de las 4 vistas ----------
+  // Se recalculan las 4 siempre (el volumen de datos es chico), pero solo se
+  // ve la que corresponda a vistaActual — así cambiar de vista es instantáneo.
   function renderLotesGrid(datos){
     renderResumenTurno(datos);
-    const cont = document.getElementById('lotes-grid');
-    const meta = document.getElementById('lotes-meta');
-    cont.innerHTML = '';
+    renderVistaLote(datos);
+    renderVistaBloque(datos);
+    renderVistaBigbag(datos);
+  }
 
-    const grupos = agruparPorLote(datos);
-    // Buscador: filtra por N° de lote o producto (no distingue mayúsculas/minúsculas).
+  function renderVistaLote(datos){
+    const cont = document.getElementById('vista-lote-grid');
+    if(!cont) return;
+    const grupos = agruparPorLotes(datos);
     const termino = (document.getElementById('search-input')?.value || '').trim().toLowerCase();
     const filtrado = termino
-      ? grupos.filter(g => g.lote.toLowerCase().includes(termino) || g.bbs.some(c=> String(c.producto||'').toLowerCase().includes(termino)))
+      ? grupos.filter(g => g.lote.toLowerCase().includes(termino) || g.bbs.some(c=> String(c.producto||'').toLowerCase().includes(termino) || String(c.encargado||'').toLowerCase().includes(termino)))
       : grupos;
-    // Siempre el lote con actividad más nueva arriba (fecha y hora reales del último bigbag cargado).
     const ordenado = [...filtrado].sort((a,b)=> b.claveReciente.localeCompare(a.claveReciente));
 
-    meta.textContent = termino
-      ? `${ordenado.length} de ${grupos.length} lote(s) · el más nuevo arriba.`
-      : ordenado.length + ' lote(s) · el más nuevo arriba. Tocá uno para ver los bigbags y el análisis.';
+    if(vistaActual === 'lote'){
+      const meta = document.getElementById('lotes-meta');
+      if(meta) meta.textContent = termino
+        ? `${ordenado.length} de ${grupos.length} lote(s) · el más nuevo arriba.`
+        : ordenado.length + ' lote(s) · el más nuevo arriba. Tocá uno para ver sus bloques de 25 tons.';
+    }
+
+    cont.innerHTML = '';
     if(ordenado.length===0){
       cont.innerHTML = termino
         ? '<div class="empty-state">No se encontró ningún lote que coincida con la búsqueda.</div>'
@@ -725,12 +819,60 @@
       card.type = 'button';
       card.className = 'lote-card';
       card.style.animationDelay = Math.min(idx*30,300) + 'ms';
-      const pct = Math.min(100, Math.round((g.bbs.length / BIGBAGS_POR_LOTE) * 100));
+      const bloquesTxt = g.bloquesCompletos
+        ? `${g.bloquesCompletos} bloque${g.bloquesCompletos===1?'':'s'} de 25t${g.bigbagsSueltos ? ' + '+g.bigbagsSueltos+' suelto'+(g.bigbagsSueltos===1?'':'s') : ''}`
+        : `${g.bigbagsSueltos} bigbag${g.bigbagsSueltos===1?'':'s'} · 1er bloque en curso`;
       card.innerHTML = `<div class="lote-eyebrow">Lote</div>
         <div class="lote-id">${g.lote}</div>
         <div class="lote-producto">${g.productoReciente}</div>
         <div class="lote-stat">
-          <span class="lote-ton">${g.bbs.length} / ${BIGBAGS_POR_LOTE} bigbags</span>
+          <span class="lote-ton">${formatTon(g.bbs.length * TON_POR_BIGBAG)} · ${g.bbs.length} bigbag${g.bbs.length===1?'':'s'}</span>
+          <span class="lote-fecha">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            ${g.fechaReciente} · ${g.horaReciente}
+          </span>
+        </div>
+        <span class="badge en-curso">${bloquesTxt}</span>`;
+      card.addEventListener('click', ()=> abrirModalLoteResumen(g));
+      cont.appendChild(card);
+    });
+  }
+
+  function renderVistaBloque(datos){
+    const cont = document.getElementById('vista-bloque-grid');
+    if(!cont) return;
+    const grupos = agruparPorBloques(datos);
+    const termino = (document.getElementById('search-input')?.value || '').trim().toLowerCase();
+    const filtrado = termino
+      ? grupos.filter(g => g.lote.toLowerCase().includes(termino) || g.bbs.some(c=> String(c.producto||'').toLowerCase().includes(termino) || String(c.encargado||'').toLowerCase().includes(termino)))
+      : grupos;
+    const ordenado = [...filtrado].sort((a,b)=> b.claveReciente.localeCompare(a.claveReciente));
+
+    if(vistaActual === 'bloque'){
+      const meta = document.getElementById('lotes-meta');
+      if(meta) meta.textContent = termino
+        ? `${ordenado.length} de ${grupos.length} bloque(s) · el más nuevo arriba.`
+        : ordenado.length + ' bloque(s) de 25 tons · el más nuevo arriba. Tocá uno para ver el análisis.';
+    }
+
+    cont.innerHTML = '';
+    if(ordenado.length===0){
+      cont.innerHTML = termino
+        ? '<div class="empty-state">No se encontró ningún bloque que coincida con la búsqueda.</div>'
+        : '<div class="empty-state">Todavía no hay bigbags cargados en la planilla.</div>';
+      return;
+    }
+    ordenado.forEach((g,idx)=>{
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'lote-card';
+      card.style.animationDelay = Math.min(idx*30,300) + 'ms';
+      const pct = Math.min(100, Math.round((g.bbs.length / BIGBAGS_POR_BLOQUE) * 100));
+      card.innerHTML = `<div class="lote-eyebrow">Lote ${g.lote} · Bloque ${g.numeroBloque}</div>
+        <div class="lote-id">${formatTon(g.bbs.length * TON_POR_BIGBAG)}</div>
+        <div class="lote-producto">${g.productoReciente}</div>
+        <div class="lote-stat">
+          <span class="lote-ton">${g.bbs.length} / ${BIGBAGS_POR_BLOQUE} bigbags</span>
           <span class="lote-fecha">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
             ${g.fechaReciente} · ${g.horaReciente}
@@ -738,17 +880,86 @@
         </div>
         <div class="lote-progress"><div class="lote-progress-fill ${g.completo?'completo':''}" style="width:${pct}%"></div></div>
         <span class="badge ${g.completo?'completo':'en-curso'}">${g.completo?'Completo':'En curso'}</span>`;
-      card.addEventListener('click', ()=> abrirModalLote(g));
+      card.addEventListener('click', ()=> abrirModalBloque(g, null));
       cont.appendChild(card);
     });
   }
 
-  // Detalle de un lote: siempre muestra el resumen general (promedio de
-  // análisis de los bigbags cargados hasta el momento, se haya completado o
-  // no el lote — así se puede seguir de cerca cómo viene el lote mientras se
-  // sigue cargando) y la lista de bigbags, cada uno tocable para su ficha.
-  function abrirModalLote(g){
+  function renderVistaBigbag(datos){
+    const cont = document.getElementById('vista-bigbag-list');
+    if(!cont) return;
+    const termino = (document.getElementById('search-input')?.value || '').trim().toLowerCase();
+    const filtrado = termino
+      ? datos.filter(c => String(c.lote||'').toLowerCase().includes(termino) || String(c.producto||'').toLowerCase().includes(termino) || String(c.encargado||'').toLowerCase().includes(termino))
+      : datos;
+    const ordenado = [...filtrado].sort((a,b)=> claveOrden(b).localeCompare(claveOrden(a)));
+
+    if(vistaActual === 'bigbag'){
+      const meta = document.getElementById('lotes-meta');
+      if(meta) meta.textContent = termino
+        ? `${ordenado.length} de ${datos.length} bigbag(s) · el más nuevo arriba.`
+        : ordenado.length + ' bigbag(s) cargados · el más nuevo arriba. Tocá uno para ver la ficha.';
+    }
+
+    cont.innerHTML = '';
+    if(ordenado.length===0){
+      cont.innerHTML = termino
+        ? '<div class="empty-state">No se encontró ningún bigbag que coincida con la búsqueda.</div>'
+        : '<div class="empty-state">Todavía no hay bigbags cargados en la planilla.</div>';
+      return;
+    }
+    ordenado.forEach(c=>{
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'turno-detalle-item';
+      item.innerHTML = `
+        <div class="tdi-top"><span class="tdi-lote">Lote ${c.lote || 'Sin N°'} · BB ${c.bb ?? '—'}</span><span class="tdi-hora">${fechaVisual(c.fecha)} · ${c.hora || '—'}</span></div>
+        <div class="tdi-bottom"><span>${c.producto || ''}${c.turno ? ' · '+c.turno : ''}</span><span class="tdi-ton">${c.micro || 'Sin dato'}</span></div>
+      `;
+      item.addEventListener('click', ()=> abrirModal(c, null));
+      cont.appendChild(item);
+    });
+  }
+
+  // Detalle de un LOTE: la lista de bloques de 25 tons que tiene adentro,
+  // cada uno tocable para ver su propio resumen y bigbags.
+  function abrirModalLoteResumen(g){
     modalVolverA = null; // se abre siempre desde la grilla principal
+    const body = document.getElementById('modal-body');
+    const bloques = [];
+    for(let i=0; i<g.bbs.length; i += BIGBAGS_POR_BLOQUE){
+      const grupo = g.bbs.slice(i, i+BIGBAGS_POR_BLOQUE);
+      bloques.push(construirBloque_(g.lote, Math.floor(i/BIGBAGS_POR_BLOQUE)+1, grupo));
+    }
+    body.innerHTML = `
+      <div class="modal-title">Lote ${g.lote}</div>
+      <div class="modal-subtitle">${g.productoReciente} · ${g.bbs.length} bigbag${g.bbs.length===1?'':'s'} · ${formatTon(g.bbs.length * TON_POR_BIGBAG)}</div>
+      <div class="turno-summary-title" style="margin:14px 0 8px;">Bloques de 25 tons</div>
+      <div class="turno-detalle-list" id="lote-bloques-list"></div>
+    `;
+    const list = document.getElementById('lote-bloques-list');
+    [...bloques].reverse().forEach(b=>{
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'turno-detalle-item';
+      item.innerHTML = `
+        <div class="tdi-top"><span class="tdi-lote">Bloque ${b.numeroBloque}</span><span class="badge ${b.completo?'completo':'en-curso'}">${b.completo?'Completo':'En curso'}</span></div>
+        <div class="tdi-bottom"><span>${b.bbs.length} / ${BIGBAGS_POR_BLOQUE} bigbags</span><span class="tdi-ton">${b.fechaReciente}</span></div>
+      `;
+      item.addEventListener('click', ()=> abrirModalBloque(b, ()=> abrirModalLoteResumen(g)));
+      list.appendChild(item);
+    });
+    document.getElementById('lote-modal').classList.add('visible');
+  }
+
+  // Detalle de un BLOQUE: siempre muestra el resumen general (promedio de
+  // análisis de los bigbags cargados hasta el momento, se haya completado o
+  // no el bloque — así se puede seguir de cerca cómo viene mientras se sigue
+  // cargando) y la lista de bigbags, cada uno tocable para su ficha.
+  // volverA: a qué vista volver al cerrar (null si se abrió directo desde la
+  // grilla principal de Bloques; la vista de Lote si se llegó drillando).
+  function abrirModalBloque(g, volverA){
+    modalVolverA = volverA || null;
     const body = document.getElementById('modal-body');
     const campo = (k,v) => `<div class="modal-field"><span class="k">${k}</span><span class="v">${v}</span></div>`;
     const promedioBlock = `
@@ -760,12 +971,12 @@
         ${campo('Humedad promedio', g.promedioHumedad!=null ? g.promedioHumedad.toFixed(1)+'%' : '—')}
       </div>`;
     body.innerHTML = `
-      <div class="modal-title">Lote ${g.lote}</div>
+      <div class="modal-title">Lote ${g.lote} · Bloque ${g.numeroBloque}</div>
       <div class="modal-subtitle">
         <span class="badge ${g.completo?'completo':'en-curso'}">${g.completo?'Completo':'En curso'}</span>
-        · ${g.bbs.length} / ${BIGBAGS_POR_LOTE} bigbags
+        · ${g.bbs.length} / ${BIGBAGS_POR_BLOQUE} bigbags
       </div>
-      ${!g.completo ? '<div class="error-msg" style="display:block;background:#eaf2fc;color:var(--series-1);border-color:var(--series-1);">Este lote todavía está en curso — faltan '+(BIGBAGS_POR_LOTE-g.bbs.length)+' bigbag(s) para completarlo. El resumen de abajo se va a ir actualizando con cada bigbag nuevo.</div>' : ''}
+      ${!g.completo ? '<div class="error-msg" style="display:block;background:#eaf2fc;color:var(--series-1);border-color:var(--series-1);">Este bloque todavía está en curso — faltan '+(BIGBAGS_POR_BLOQUE-g.bbs.length)+' bigbag(s) para completarlo. El resumen de abajo se va a ir actualizando con cada bigbag nuevo.</div>' : ''}
       ${promedioBlock}
       <div class="turno-summary-title" style="margin:14px 0 8px;">Bigbags cargados</div>
       <div class="turno-detalle-list" id="lote-detalle-list"></div>
@@ -779,7 +990,7 @@
         <div class="tdi-top"><span class="tdi-lote">BB ${c.bb ?? '—'} · ${c.hora || '—'}</span><span class="tdi-hora">${fechaVisual(c.fecha)}</span></div>
         <div class="tdi-bottom"><span>${c.producto || ''}</span><span class="tdi-ton">${c.micro || 'Sin dato'}</span></div>
       `;
-      item.addEventListener('click', ()=> abrirModal(c, ()=> abrirModalLote(g)));
+      item.addEventListener('click', ()=> abrirModal(c, ()=> abrirModalBloque(g, volverA)));
       list.appendChild(item);
     });
     document.getElementById('lote-modal').classList.add('visible');
@@ -989,6 +1200,7 @@
     });
   }
 
+  cambiarVista(vistaActual); // deja la pantalla en el estado inicial correcto
   iniciar();
 </script>
 </body>
