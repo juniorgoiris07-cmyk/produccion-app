@@ -266,7 +266,7 @@
             <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/>
             <path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
           </svg>
-          <input type="text" id="search-input" class="search-input" placeholder="Buscar lote, producto o encargado" autocomplete="off">
+          <input type="text" id="search-input" class="search-input" placeholder="Buscar lote, N° de bigbag, producto..." autocomplete="off">
           <button type="button" class="search-clear hidden" id="search-clear" aria-label="Limpiar búsqueda">✕</button>
         </div>
 
@@ -783,7 +783,7 @@
     const grupos = agruparPorLotes(datos);
     const termino = (document.getElementById('search-input')?.value || '').trim().toLowerCase();
     const filtrado = termino
-      ? grupos.filter(g => g.lote.toLowerCase().includes(termino) || g.bbs.some(c=> String(c.producto||'').toLowerCase().includes(termino) || String(c.encargado||'').toLowerCase().includes(termino)))
+      ? grupos.filter(g => g.lote.toLowerCase().includes(termino) || g.bbs.some(c=> String(c.producto||'').toLowerCase().includes(termino) || String(c.encargado||'').toLowerCase().includes(termino) || String(c.bb ?? '').toLowerCase().includes(termino)))
       : grupos;
     const ordenado = [...filtrado].sort((a,b)=> b.claveReciente.localeCompare(a.claveReciente));
 
@@ -830,7 +830,7 @@
     if(!cont) return;
     const termino = (document.getElementById('search-input')?.value || '').trim().toLowerCase();
     const filtrado = termino
-      ? datos.filter(c => String(c.lote||'').toLowerCase().includes(termino) || String(c.producto||'').toLowerCase().includes(termino) || String(c.encargado||'').toLowerCase().includes(termino))
+      ? datos.filter(c => String(c.lote||'').toLowerCase().includes(termino) || String(c.producto||'').toLowerCase().includes(termino) || String(c.encargado||'').toLowerCase().includes(termino) || String(c.bb ?? '').toLowerCase().includes(termino))
       : datos;
     const ordenado = [...filtrado].sort((a,b)=> claveOrden(b).localeCompare(claveOrden(a)));
 
