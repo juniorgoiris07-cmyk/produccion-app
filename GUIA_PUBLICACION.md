@@ -96,14 +96,13 @@ instalar).
 
 ## Primer uso en cada teléfono
 
-### Carga (operarios)
-La primera vez que se abre, la app va a pedir:
-1. El **token de Airtable** (una sola vez por teléfono).
-2. **Usuario y contraseña** (el que ya usan hoy).
-
-Para ese primer login sí hace falta tener internet. Una vez logueado, la
-carga de datos funciona incluso sin señal (se guarda en el teléfono y se
-sube sola cuando vuelve la conexión).
+### Carga (operarios) — ⚠️ ACTUALMENTE SIN USO
+Esta app quedó armada de una etapa anterior (se conecta a Airtable, con
+usuario y contraseña), pero **hoy no se usa**: la carga de datos se hace a
+mano, directo en la planilla de Google Sheets. Se deja documentada acá por
+si en algún momento se retoma, pero no hace falta instalarla ni
+mantenerla al día — todo el trabajo real pasa por la planilla y por la app
+de Informes de abajo.
 
 ### Informes (jefes/gerencia)
 Esta app ya no tiene usuario ni contraseña — no hace falta loguearse. La
@@ -119,11 +118,17 @@ de Google Sheets que vos cargás a mano.
 
 - La planilla se llama **"Gestión de Producción"** y tiene una hoja
   llamada **"Cargas"** con las columnas: Fecha, Hora, Turno, Producto,
-  Lote, Toneladas, Pureza, Humedad, Micro, Operador, Observaciones (la
-  columna ID de la izquierda se completa sola, no hay que tocarla).
-- Cargá cada lote como una fila nueva, igual que en cualquier planilla.
+  Lote, BB N°, Pureza, Temperatura ambiente, Temperatura del grano,
+  Humedad del grano, Micro, Encargado, Observaciones (la columna ID de la
+  izquierda se completa sola, no hay que tocarla). Cada fila es UN bigbag
+  individual, no un lote entero — un lote grande simplemente tiene varias
+  filas con el mismo N° de Lote.
+- Cargá cada bigbag como una fila nueva, igual que en cualquier planilla.
   Apenas escribís el número de Lote, esa fila queda identificada
-  automáticamente.
+  automáticamente (columna ID) y, si dejaste la Hora vacía, también se
+  completa sola con la hora real del momento en que cargaste la fila —
+  no hace falta escribirla a mano. La Fecha sí se sigue completando a
+  mano, como hasta ahora.
 - La app de Informes lee esa planilla a través de una "app web" de Google
   Apps Script (un pequeño backend, ya armado y funcionando) — no hace
   falta tocar nada de esto para el uso diario, solo cargar filas en la
@@ -136,6 +141,29 @@ de Google Sheets que vos cargás a mano.
   un lote, se puede editar ese resultado — el cambio se guarda
   directamente en la planilla, y si no hay señal se guarda en el teléfono
   y se sube solo cuando vuelve la conexión, igual que con las cargas.
+
+## Cómo agregar un campo/columna nuevo más adelante
+
+Cuando quieran sumar un dato nuevo a la planilla (por ejemplo una columna
+más de análisis), hay 3 lugares que tocar siempre, en este orden:
+
+1. **La planilla + `apps-script/Code.gs`**: agregar la columna nueva en la
+   hoja "Cargas", sumarla al objeto `COL` (con el número de columna que le
+   corresponda) y agregar esa propiedad en `getAllCargas()` (el bloque que
+   arma cada `cargas.push({...})`). Si es un número (como Pureza o
+   Temperatura), usar `numOrNull_(...)` igual que las demás; si es texto,
+   alcanza con `row[COL.NUEVOCAMPO - 1] || ''`.
+2. **`informes/index.html`**: decidir dónde tiene que aparecer ese dato
+   nuevo — en la ficha de un bigbag (`abrirModal`), en el promedio de un
+   bloque de 25 tons (agregarlo a `promedio_` y a los templates que
+   muestran `promedioPureza`, etc.), en la búsqueda, o en varios lugares a
+   la vez.
+3. **`informes/sw.js`**: subir en 1 el número de `CACHE_NAME` (por ejemplo
+   `v26` → `v27`) para que los teléfonos que ya tienen la app instalada
+   vean el cambio.
+
+Avisame cuándo tengan definidos los campos nuevos y lo hacemos siguiendo
+esta misma receta.
 
 ## Si actualizás el contenido más adelante
 
