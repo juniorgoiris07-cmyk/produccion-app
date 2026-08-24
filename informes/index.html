@@ -240,6 +240,7 @@
       <div class="vista-selector" id="vista-selector">
         <button type="button" class="vista-btn" data-vista="turno">Turno</button>
         <button type="button" class="vista-btn" data-vista="lote">Lote</button>
+        <button type="button" class="vista-btn" data-vista="bloques">25 Tons</button>
         <button type="button" class="vista-btn" data-vista="bigbag">Detalle por BigBag</button>
       </div>
 
@@ -276,6 +277,7 @@
         </div>
 
         <div class="lotes-grid" id="vista-lote-grid"></div>
+        <div class="lotes-grid hidden" id="vista-bloques-grid"></div>
         <div class="turno-detalle-list hidden" id="vista-bigbag-list"></div>
       </div>
     </section>
@@ -356,7 +358,7 @@
   // Para que la pantalla nunca se vea vacía mientras se traen los datos por
   // primera vez (antes se veía en blanco hasta tocar "Actualizar").
   function mostrarCargandoInicial(){
-    ['vista-lote-grid'].forEach(id=>{
+    ['vista-lote-grid','vista-bloques-grid'].forEach(id=>{
       const cont = document.getElementById(id);
       if(cont && !cont.children.length){
         let html = '';
@@ -393,6 +395,7 @@
     document.getElementById('turno-summary').classList.toggle('hidden', v!=='turno');
     document.getElementById('panel-datos').classList.toggle('hidden', v==='turno');
     document.getElementById('vista-lote-grid').classList.toggle('hidden', v!=='lote');
+    document.getElementById('vista-bloques-grid').classList.toggle('hidden', v!=='bloques');
     document.getElementById('vista-bigbag-list').classList.toggle('hidden', v!=='bigbag');
     renderLotesGrid(TODAS_LAS_CARGAS);
   }
@@ -793,7 +796,134 @@
   function renderLotesGrid(datos){
     renderResumenTurno(datos);
     renderVistaLote(datos);
+    renderVistaBloques(datos);
     renderVistaBigbag(datos);
+  }
+
+  // ---------- vista "25 Tons": bloques GLOBALES, sin importar el lote ----------
+  // A diferencia de los bloques de la vista Lote (que se arman adentro de
+  // cada lote por separado), acá se toman TODOS los bigbags de la planta,
+  // se ordenan cronológicamente (por N° de bigbag, igual que en el resto de
+  // la app) y se cortan en tandas de BIGBAGS_POR_BLOQUE tal cual se fueron
+  // cargando, sin importar de qué lote es cada uno. La última tanda, si
+  // todavía no llegó a 25, queda "en curso" y se va completando con cada
+  // bigbag nuevo; al llegar a 25 se cierra y arranca la siguiente,
+  // indefinidamente. Bigbags sin N° (no se puede ordenar con certeza) quedan
+  // afuera de esta vista.
+  function bloquesGlobales_(datos){
+    const tieneBB = c => c.bb != null && c.bb !== '' && !isNaN(Number(c.bb));
+    const ordenados = [...datos].filter(tieneBB).sort((a,b)=> Number(a.bb) - Number(b.bb));
+    const bloques = [];
+    for(let i=0; i<ordenados.length; i += BIGBAGS_POR_BLOQUE){
+      const grupo = ordenados.slice(i, i + BIGBAGS_POR_BLOQUE);
+      const masReciente = grupo[grupo.length-1];
+      const lotes = [...new Set(grupo.map(c=> String(c.lote||'').trim()).filter(Boolean))];
+      bloques.push({
+        numeroBloque: Math.floor(i / BIGBAGS_POR_BLOQUE) + 1,
+        bbs: grupo,
+        completo: grupo.length >= BIGBAGS_POR_BLOQUE,
+        promedioPureza: promedio_(grupo,'pureza'),
+        promedioTemperaturaAmbiente: promedio_(grupo,'temperaturaAmbiente'),
+        promedioTemperaturaGrano: promedio_(grupo,'temperaturaGrano'),
+        promedioHumedad: promedio_(grupo,'humedadGrano'),
+        lotes,
+        productoReciente: masReciente.producto || '',
+        fechaReciente: fechaVisual(masReciente.fecha),
+        horaReciente: masReciente.hora || '—'
+      });
+    }
+    return bloques;
+  }
+
+  function renderVistaBloques(datos){
+    const cont = document.getElementById('vista-bloques-grid');
+    if(!cont) return;
+    const bloques = bloquesGlobales_(datos);
+    const termino = (document.getElementById('search-input')?.value || '').trim().toLowerCase();
+    const filtrado = termino
+      ? bloques.filter(b => b.lotes.some(l=> l.toLowerCase().includes(termino)) || b.bbs.some(c=> String(c.producto||'').toLowerCase().includes(termino) || String(c.encargado||'').toLowerCase().includes(termino) || String(c.bb ?? '').toLowerCase().includes(termino)))
+      : bloques;
+    // El más nuevo arriba (el bloque en curso, si lo hay, es siempre el último de la lista original).
+    const ordenado = [...filtrado].reverse();
+
+    if(vistaActual === 'bloques'){
+      const meta = document.getElementById('lotes-meta');
+      if(meta){
+        const enCurso = bloques.length && !bloques[bloques.length-1].completo;
+        meta.textContent = termino
+          ? `${ordenado.length} de ${bloques.length} bloque(s) de 25t.`
+          : `${bloques.length} bloque(s) de 25t${enCurso ? ' (el último en curso)' : ''} · el más nuevo arriba. Tocá uno para ver el detalle.`;
+      }
+    }
+
+    cont.innerHTML = '';
+    if(ordenado.length===0){
+      cont.innerHTML = termino
+        ? '<div class="empty-state">No se encontró ningún bloque que coincida con la búsqueda.</div>'
+        : '<div class="empty-state">Todavía no hay bigbags cargados en la planilla.</div>';
+      return;
+    }
+    ordenado.forEach((b,idx)=>{
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'lote-card';
+      card.style.animationDelay = Math.min(idx*30,300) + 'ms';
+      const faltan = BIGBAGS_POR_BLOQUE - b.bbs.length;
+      card.innerHTML = `<div class="lote-eyebrow">Bloque</div>
+        <div class="lote-id">#${b.numeroBloque}</div>
+        <div class="lote-producto">${b.lotes.length ? 'Lote ' + b.lotes.join(', ') : 'Sin lote'}</div>
+        <div class="lote-stat">
+          <span class="lote-ton">${formatTon(b.bbs.length * TON_POR_BIGBAG)} · ${b.bbs.length}/${BIGBAGS_POR_BLOQUE} bigbags</span>
+          <span class="lote-fecha">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            ${b.fechaReciente} · ${b.horaReciente}
+          </span>
+        </div>
+        <span class="badge ${b.completo?'completo':'en-curso'}">${b.completo ? 'Completo' : 'En curso · faltan '+faltan}</span>`;
+      card.addEventListener('click', ()=> abrirModalBloqueGlobal_(b));
+      cont.appendChild(card);
+    });
+  }
+
+  // Detalle de un bloque GLOBAL de 25 tons: mismo formato que el detalle de
+  // bloque por lote (promedios de calidad + lista de bigbags), pero sin
+  // asumir un único lote — si el bloque mezcla más de uno, se listan todos.
+  function abrirModalBloqueGlobal_(b){
+    modalVolverA = null; // se abre siempre desde la grilla principal de 25 Tons
+    const body = document.getElementById('modal-body');
+    const campo = (k,v) => `<div class="modal-field"><span class="k">${k}</span><span class="v">${v}</span></div>`;
+    const promedioBlock = `
+      <div class="lote-promedio-box ${b.completo?'':'en-curso'}">
+        <div class="lote-promedio-titulo">Resumen general (promedio de ${b.bbs.length} bigbag${b.bbs.length===1?'':'s'}${b.completo?'':' hasta ahora'})</div>
+        ${campo('Pureza promedio', b.promedioPureza!=null ? b.promedioPureza.toFixed(2)+'%' : '—')}
+        ${campo('Temp. ambiente promedio', b.promedioTemperaturaAmbiente!=null ? b.promedioTemperaturaAmbiente.toFixed(2)+'°C' : '—')}
+        ${campo('Temp. de grano promedio', b.promedioTemperaturaGrano!=null ? b.promedioTemperaturaGrano.toFixed(2)+'°C' : '—')}
+        ${campo('Humedad promedio', b.promedioHumedad!=null ? b.promedioHumedad.toFixed(2)+'%' : '—')}
+      </div>`;
+    body.innerHTML = `
+      <div class="modal-title">Bloque #${b.numeroBloque} · 25 Tons</div>
+      <div class="modal-subtitle">
+        <span class="badge ${b.completo?'completo':'en-curso'}">${b.completo?'Completo':'En curso'}</span>
+        · ${b.bbs.length} / ${BIGBAGS_POR_BLOQUE} bigbags · ${b.lotes.length ? 'lote(s) ' + b.lotes.join(', ') : 'sin lote'}
+      </div>
+      ${!b.completo ? '<div class="error-msg" style="display:block;background:var(--gold-bg);color:var(--series-1-ink);border-color:var(--series-1);">Este bloque todavía está en curso — faltan '+(BIGBAGS_POR_BLOQUE-b.bbs.length)+' bigbag(s) para completarlo. El resumen de abajo se va a ir actualizando con cada bigbag nuevo, y al completarse se cierra y arranca el siguiente bloque.</div>' : ''}
+      ${promedioBlock}
+      <div class="turno-summary-title" style="margin:14px 0 8px;">Bigbags cargados</div>
+      <div class="turno-detalle-list" id="bloque-global-detalle-list"></div>
+    `;
+    const list = document.getElementById('bloque-global-detalle-list');
+    b.bbs.forEach(c=>{
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'turno-detalle-item';
+      item.innerHTML = `
+        <div class="tdi-top"><span class="tdi-lote">Lote ${c.lote || 'Sin N°'} · BB ${c.bb ?? '—'}</span><span class="tdi-hora">${fechaVisual(c.fecha)}${c.hora ? ' · '+c.hora : ''}</span></div>
+        <div class="tdi-bottom"><span>${c.producto || ''}</span><span class="tdi-ton">${c.micro || 'Sin dato'}</span></div>
+      `;
+      item.addEventListener('click', ()=> abrirModal(c, ()=> abrirModalBloqueGlobal_(b)));
+      list.appendChild(item);
+    });
+    document.getElementById('lote-modal').classList.add('visible');
   }
 
   function renderVistaLote(datos){
