@@ -154,18 +154,14 @@ function respond(obj) {
  * ninguna acción manual — es la forma en que cada bigbag que cargás a mano
  * queda identificable para que la app pueda editarlo después.
  *
- * Ese mismo momento (recién se completó el Lote de una fila nueva) también
- * se usa para completar la Hora sola, con la hora real del reloj en ese
- * instante, SI la columna Hora quedó vacía. Antes esa columna casi nunca se
- * cargaba a mano, y sin Hora la app de Informes tiene que "adivinar" el
- * orden cronológico de los turnos usando el N° de bigbag como aproximación.
- * Con esto, los bigbags nuevos van a tener una Hora real y confiable sin
- * que nadie tenga que acordarse de tipearla.
- * (La Fecha NO se autocompleta acá a propósito: si se tocara sola, un
- * bigbag cargado pasada la medianoche durante el turno noche quedaría con
- * la fecha del día siguiente en vez de la fecha en que arrancó ese turno
- * — exactamente el problema que la app ya resuelve del lado de Informes.
- * La Fecha se sigue completando a mano, como hasta ahora.)
+ * NOTA: en algún momento se probó autocompletar también la Hora acá (con
+ * la hora real del reloj al momento de tipear la fila), pero se descartó:
+ * como la carga a la planilla no se hace en el momento en que se produce
+ * cada bigbag, esa hora hubiera sido la hora de tipeo, no la hora real de
+ * producción — un dato que parece bueno pero en realidad es incorrecto.
+ * Por eso Fecha y Hora se siguen completando las dos a mano, como hasta
+ * ahora, y la app de Informes sigue reconstruyendo el orden cronológico
+ * por N° de bigbag cuando Hora no está cargada.
  */
 function onEdit(e) {
   const sheet = e.range.getSheet();
@@ -177,9 +173,5 @@ function onEdit(e) {
   const loteCell = sheet.getRange(row, COL.LOTE);
   if (loteCell.getValue()) {
     idCell.setValue(Utilities.getUuid());
-    const horaCell = sheet.getRange(row, COL.HORA);
-    if (!horaCell.getValue()) {
-      horaCell.setValue(Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'HH:mm'));
-    }
   }
 }
