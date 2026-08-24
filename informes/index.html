@@ -598,6 +598,50 @@
     return `${d.getFullYear()}-${mm}-${dd}`;
   }
 
+  // Diferencia en días de calendario entre dos fechas ISO "AAAA-MM-DD".
+  function diffDiasISO_(isoA, isoB){
+    if(!isoA || !isoB) return Infinity;
+    const [ay,am,ad] = isoA.split('-').map(Number);
+    const [by,bm,bd] = isoB.split('-').map(Number);
+    return Math.round((Date.UTC(by,bm-1,bd) - Date.UTC(ay,am-1,ad)) / 86400000);
+  }
+
+  // El turno noche cruza la medianoche (18 a 6hs aprox.), así que una carga
+  // hecha ya pasada la medianoche queda con la fecha calendario del día
+  // siguiente aunque sea parte del mismo turno que arrancó la tarde
+  // anterior. Para que el resumen por turno la cuente bajo el día en que
+  // arrancó ese turno (y no partida en dos), reconstruimos "tandas"
+  // continuas de turno noche: mientras no aparezca un bigbag de otro
+  // turno en el medio, toda la tanda cuenta como el día de su primer
+  // bigbag. Se ordena por N° de bigbag (correlativo, asignado al guardar)
+  // porque la Hora casi nunca viene cargada en la planilla, así que no es
+  // un dato confiable para esto. Devuelve un Map: carga -> "día operativo"
+  // (AAAA-MM-DD).
+  function calcularDiaOperativo_(datos){
+    const mapa = new Map();
+    const tieneBB = c => c.bb != null && c.bb !== '' && !isNaN(Number(c.bb));
+    const conBB = datos.filter(tieneBB);
+    const sinBB = datos.filter(c => !tieneBB(c));
+    const ordenados = [...conBB].sort((a,b)=> Number(a.bb) - Number(b.bb));
+    let diaCorrida = null;
+    ordenados.forEach(c=>{
+      const fISO = fechaISO_(c.fecha);
+      const esNoche = /noche|nocturno/i.test(String(c.turno||''));
+      if(esNoche && fISO){
+        // Si la tanda anterior quedó "abierta" hace más de un día (por
+        // ejemplo, no hubo turno día en el medio durante varias jornadas),
+        // se reinicia en vez de arrastrarla indefinidamente.
+        if(diaCorrida == null || diffDiasISO_(diaCorrida, fISO) > 1) diaCorrida = fISO;
+        mapa.set(c, diaCorrida);
+      } else {
+        diaCorrida = null; // un bigbag de otro turno corta la tanda nocturna
+        mapa.set(c, fISO);
+      }
+    });
+    sinBB.forEach(c=> mapa.set(c, fechaISO_(c.fecha)));
+    return mapa;
+  }
+
   function renderResumenTurno(datos){
     const grid = document.getElementById('turno-summary-grid');
     if(!grid) return;
@@ -611,9 +655,10 @@
     const tituloEl = document.getElementById('turno-summary-titletext');
     if(tituloEl) tituloEl.textContent = esHoy ? 'Resumen de hoy por turno' : 'Resumen por turno';
 
-    // Compara por fecha normalizada (no como texto suelto), así funciona
-    // sin importar si la celda vino como "AAAA-MM-DD" o "DD/MM/AAAA".
-    const delDia = datos.filter(c => fechaISO_(c.fecha) === objetivoISO);
+    // "Día operativo": el turno noche que cruza la medianoche cuenta
+    // completo bajo el día en que arrancó (ver calcularDiaOperativo_).
+    const diaOperativoMap = calcularDiaOperativo_(datos);
+    const delDia = datos.filter(c => diaOperativoMap.get(c) === objetivoISO);
 
     // Un grupo por cada nombre de turno distinto que aparezca ese día (sin
     // suponer cuáles ni cuántos son), ordenados por la hora más temprana de
