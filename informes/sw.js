@@ -5,14 +5,15 @@
 // datos y cola de ediciones sin conexión vive en index.html, no en el
 // service worker.
 
-const CACHE_NAME = 'informes-produccion-v19';
+const CACHE_NAME = 'informes-produccion-v20';
 const ASSETS = [
   './',
   './index.html',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',
-  './icons/apple-touch-icon.png'
+  './icons/apple-touch-icon.png',
+  './icons/logo-header.png'
 ];
 
 self.addEventListener('install', (event) => {
