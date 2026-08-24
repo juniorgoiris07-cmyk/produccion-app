@@ -106,6 +106,14 @@
   .vista-btn.activa{background:var(--series-1);border-color:var(--series-1);color:#fff;}
 
   .lotes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px;}
+  .bloques-list{display:flex;flex-direction:column;gap:10px;}
+  .bloques-list .lote-card{display:flex;align-items:center;flex-wrap:wrap;column-gap:14px;row-gap:6px;}
+  .bloques-list .lote-card .lote-eyebrow,
+  .bloques-list .lote-card .lote-id,
+  .bloques-list .lote-card .lote-producto{margin-bottom:0;}
+  .bloques-list .lote-card .lote-head{flex:0 0 auto;min-width:110px;}
+  .bloques-list .lote-card .lote-stat{flex:1 1 200px;margin-bottom:0;}
+  .bloques-list .lote-card .badge{flex:0 0 auto;}
   @keyframes cardIn{from{opacity:0;transform:translateY(10px) scale(.97);}to{opacity:1;transform:translateY(0) scale(1);}}
   .lote-card{background:var(--card);border:1px solid var(--gridline);border-radius:10px;padding:12px;cursor:pointer;text-align:left;transition:box-shadow .2s ease,border-color .2s ease,transform .15s ease;box-shadow:var(--shadow-sm);position:relative;animation:cardIn .35s ease both;}
   .lote-card:hover{border-color:var(--series-1);box-shadow:var(--shadow-md);transform:translateY(-2px);}
@@ -277,7 +285,7 @@
         </div>
 
         <div class="lotes-grid" id="vista-lote-grid"></div>
-        <div class="lotes-grid hidden" id="vista-bloques-grid"></div>
+        <div class="bloques-list hidden" id="vista-bloques-grid"></div>
         <div class="turno-detalle-list hidden" id="vista-bigbag-list"></div>
       </div>
     </section>
@@ -869,9 +877,11 @@
       card.className = 'lote-card';
       card.style.animationDelay = Math.min(idx*30,300) + 'ms';
       const faltan = BIGBAGS_POR_BLOQUE - b.bbs.length;
-      card.innerHTML = `<div class="lote-eyebrow">Bloque</div>
-        <div class="lote-id">#${b.numeroBloque}</div>
-        <div class="lote-producto">${b.lotes.length ? 'Lote ' + b.lotes.join(', ') : 'Sin lote'}</div>
+      card.innerHTML = `<div class="lote-head">
+          <div class="lote-eyebrow">Bloque</div>
+          <div class="lote-id">#${b.numeroBloque}</div>
+          <div class="lote-producto">${b.lotes.length ? 'Lote ' + b.lotes.join(', ') : 'Sin lote'}</div>
+        </div>
         <div class="lote-stat">
           <span class="lote-ton">${formatTon(b.bbs.length * TON_POR_BIGBAG)} · ${b.bbs.length}/${BIGBAGS_POR_BLOQUE} bigbags</span>
           <span class="lote-fecha">
