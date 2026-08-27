@@ -563,6 +563,19 @@
     return parseInt(m[1],10)*60 + parseInt(m[2],10);
   }
 
+  // A diferencia de horaAMinutos (que siempre devuelve un número para poder
+  // ordenar aunque no haya hora), esta devuelve null si la Hora no es un
+  // HH:MM confiable. Se usa para saber si un bigbag tiene una Hora real
+  // cargada — y por lo tanto no hace falta "adivinar" a qué turno
+  // pertenece por N° de bigbag, se puede usar la hora real.
+  function horaMinutosConfiable_(hora){
+    const m = String(hora||'').trim().match(/^(\d{1,2}):(\d{2})$/);
+    if(!m) return null;
+    const h = parseInt(m[1],10), mi = parseInt(m[2],10);
+    if(h>23 || mi>59) return null;
+    return h*60 + mi;
+  }
+
   // Diferencia en días de calendario entre dos fechas ISO "AAAA-MM-DD".
   function diffDiasISO_(isoA, isoB){
     if(!isoA || !isoB) return Infinity;
@@ -579,8 +592,18 @@
   // turno día), reconstruimos directamente una LISTA de instancias de
   // turno reales, cada una con su propio rango de fechas — por ejemplo
   // "Turno Noche · 24 → 25/08". Se ordena por N° de bigbag (correlativo,
-  // asignado al guardar) porque la Hora casi nunca viene cargada en la
-  // planilla, así que no es un dato confiable para esto.
+  // asignado al guardar) porque sigue siendo el único dato 100% confiable
+  // para el orden cronológico.
+  //
+  // Desde que empezó a cargarse la Hora real (columna Hora, HH:MM), esos
+  // bigbags ya NO necesitan que se "adivine" nada: si es turno noche y la
+  // hora es antes de las 6:00, es la cola de la tanda que arrancó la tarde
+  // anterior (se pega a la tanda abierta); si la hora es de las 18:00 en
+  // adelante, es SIEMPRE el arranque de una tanda nueva, aunque la tanda
+  // de la noche anterior siguiera "abierta" — así ya no hace falta asumir
+  // nada, se sabe con certeza. Para los bigbags viejos sin Hora, se sigue
+  // usando el mismo criterio de siempre (agrupar por N° de bigbag,
+  // tolerante a fechas mal tipeadas).
   // Devuelve un array de instancias: { turno, fechaInicio, fechaFin, bigbags[] }.
   function calcularInstanciasTurno_(datos){
     const tieneBB = c => c.bb != null && c.bb !== '' && !isNaN(Number(c.bb));
@@ -595,16 +618,30 @@
       const fISO = fechaISO_(c.fecha);
       const nombre = String(c.turno||'').trim() || 'Sin turno';
       const esNoche = /noche|nocturno/i.test(nombre);
-      // El turno noche puede seguir al día calendario siguiente (cruza
-      // medianoche); el resto de los turnos solo se agrupan dentro del
-      // mismo día. Un gap negativo (fecha mal tipeada, ligeramente
-      // anterior a la de la tanda) no corta la tanda, para no partir en
-      // dos una tanda real por un simple error de tipeo.
-      const maxGap = esNoche ? 1 : 0;
+      const horaMin = horaMinutosConfiable_(c.hora);
+
       let sigue = false;
       if(actual && actual.turno === nombre && fISO){
-        const gap = diffDiasISO_(actual.fechaFin, fISO);
-        sigue = gap <= maxGap;
+        if(horaMin != null){
+          // Con Hora real, se compara siempre contra el día en que
+          // ARRANCÓ esta tanda (fechaInicio), no contra el último día
+          // alcanzado (fechaFin) — si se comparara contra fechaFin, una
+          // tanda que ya cruzó la medianoche "arrastraría" ese día nuevo
+          // y una noche siguiente que arranca esa misma tardecita
+          // parecería, por error, una continuación de la anterior.
+          const gapInicio = diffDiasISO_(actual.fechaInicio, fISO);
+          if(esNoche){
+            sigue = horaMin < 6*60 ? (gapInicio === 0 || gapInicio === 1) : gapInicio === 0;
+          } else {
+            sigue = gapInicio === 0; // turno día: nunca cruza medianoche
+          }
+        } else {
+          const gap = diffDiasISO_(actual.fechaFin, fISO);
+          // Sin Hora confiable: mismo criterio de siempre por N° de bigbag.
+          // Un gap negativo (fecha mal tipeada) no corta la tanda.
+          const maxGap = esNoche ? 1 : 0;
+          sigue = gap <= maxGap;
+        }
       }
       if(sigue){
         actual.bigbags.push(c);
