@@ -35,6 +35,8 @@
     --warning-bg:     #fff6e0;
     --series-1-rgb:   138,109,0;
     --gold-bg:        #FBF0CE;
+    --obs-bg:         #fbeae0;
+    --obs-border:     #c97a45;
     --ink-1:          #161513;
     --ink-2:          #000000;
     --shadow-sm:      0 1px 2px rgba(20,20,15,0.05), 0 1px 4px rgba(20,20,15,0.04);
@@ -187,6 +189,10 @@
   .turno-detalle-list{display:flex;flex-direction:column;gap:8px;margin-top:2px;}
   .turno-detalle-item{appearance:none;font-family:inherit;display:block;width:100%;text-align:left;background:var(--surface-2);border:1px solid var(--gridline);border-radius:9px;padding:9px 11px;cursor:pointer;transition:border-color .15s ease, box-shadow .15s ease;}
   .turno-detalle-item:hover{border-color:var(--series-1);box-shadow:var(--shadow-sm);}
+  /* Bigbag con Observaciones cargadas: mismo bloque, resaltado suave para
+     distinguirlo de un vistazo sin tener que abrir la ficha. */
+  .turno-detalle-item.tiene-obs{background:var(--obs-bg);border-color:var(--obs-border);}
+  .turno-detalle-item.tiene-obs:hover{border-color:var(--obs-border);box-shadow:var(--shadow-sm);}
   .tdi-top{display:flex;justify-content:space-between;align-items:baseline;font-size:13.5px;font-weight:700;color:var(--text-primary);margin-bottom:3px;}
   .tdi-hora{font-size:11.5px;color:var(--text-muted);font-weight:600;}
   .tdi-bottom{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--text-secondary);}
@@ -744,7 +750,7 @@
     ordenados.forEach(c=>{
       const item = document.createElement('button');
       item.type = 'button';
-      item.className = 'turno-detalle-item';
+      item.className = 'turno-detalle-item' + (c.obs ? ' tiene-obs' : '');
       item.innerHTML = `
         <div class="tdi-top"><span class="tdi-lote">Lote ${c.lote || 'Sin N°'} · BB ${c.bb ?? '—'}</span><span class="tdi-hora">${c.hora || '—'}</span></div>
         <div class="tdi-bottom"><span>${c.producto || ''}</span><span class="tdi-ton">${c.micro || 'Sin dato'}</span></div>
@@ -962,7 +968,7 @@
     b.bbs.forEach(c=>{
       const item = document.createElement('button');
       item.type = 'button';
-      item.className = 'turno-detalle-item';
+      item.className = 'turno-detalle-item' + (c.obs ? ' tiene-obs' : '');
       item.innerHTML = `
         <div class="tdi-top"><span class="tdi-lote">Lote ${c.lote || 'Sin N°'} · BB ${c.bb ?? '—'}</span><span class="tdi-hora">${fechaVisual(c.fecha)}${c.hora ? ' · '+c.hora : ''}</span></div>
         <div class="tdi-bottom"><span>${c.producto || ''}</span><span class="tdi-ton">${c.micro || 'Sin dato'}</span></div>
@@ -1047,7 +1053,7 @@
     ordenado.forEach(c=>{
       const item = document.createElement('button');
       item.type = 'button';
-      item.className = 'turno-detalle-item';
+      item.className = 'turno-detalle-item' + (c.obs ? ' tiene-obs' : '');
       item.innerHTML = `
         <div class="tdi-top"><span class="tdi-lote">Lote ${c.lote || 'Sin N°'} · BB ${c.bb ?? '—'}</span><span class="tdi-hora">${fechaVisual(c.fecha)}${c.hora ? ' · '+c.hora : ''}</span></div>
         <div class="tdi-bottom"><span>${c.producto || ''}${c.turno ? ' · '+c.turno : ''}</span><span class="tdi-ton">${c.micro || 'Sin dato'}</span></div>
@@ -1121,7 +1127,7 @@
     g.bbs.forEach(c=>{
       const item = document.createElement('button');
       item.type = 'button';
-      item.className = 'turno-detalle-item';
+      item.className = 'turno-detalle-item' + (c.obs ? ' tiene-obs' : '');
       item.innerHTML = `
         <div class="tdi-top"><span class="tdi-lote">BB ${c.bb ?? '—'}</span><span class="tdi-hora">${fechaVisual(c.fecha)}${c.hora ? ' · '+c.hora : ''}</span></div>
         <div class="tdi-bottom"><span>${c.producto || ''}</span><span class="tdi-ton">${c.micro || 'Sin dato'}</span></div>
