@@ -30,7 +30,10 @@ Son dos apps separadas que comparten la misma planilla: **Carga** para
 registrar bigbags nuevos desde el celular, e **Informes** para consultarlos
 después. Las dos se instalan por separado (ver Paso 5), y las dos piden la
 misma URL de Apps Script la primera vez — si ya configuraste una, la otra
-la hereda sola en el mismo teléfono.
+la hereda sola en el mismo teléfono. Para distinguirlas de un vistazo (los
+dos íconos van a quedar uno al lado del otro en la pantalla del teléfono),
+el ícono de Carga tiene un círculo dorado con un "+" superpuesto sobre el
+isologo de Progresso; el de Informes es el isologo solo.
 
 ## Paso 1 — Crear cuenta en GitHub (si no tenés una)
 
@@ -145,9 +148,16 @@ hay ninguna otra app ni servicio intermedio involucrado.
   cuando Hora no está cargada la app de Informes reconstruye el orden
   cronológico de los turnos usando el N° de bigbag como aproximación — ver
   la vista "Turno" dentro de Informes.
+- Abajo del formulario, Carga muestra los últimos bigbags cargados (los
+  últimos 8, según N° de BigBag) y cada uno tiene una ✕ para eliminarlo —
+  útil si se cargó algo mal. Pide confirmación antes de borrar y no se
+  puede deshacer. Si se borra sin señal, queda igual guardado el pedido de
+  borrado y se aplica solo apenas vuelve la conexión.
 - **Informes** es para consultar lo cargado: lotes, turnos, bloques de 25
   tons y detalle por bigbag. No hace falta tocar nada para el uso diario,
-  solo abrir la app.
+  solo abrir la app. Desde Carga no hay forma de llegar a Informes (son
+  apps separadas a propósito); si alguien necesita las dos, instala las
+  dos por separado.
 - Las dos apps hablan con la planilla a través de una "app web" de Google
   Apps Script (un pequeño backend, ya armado y funcionando).
 - Si alguna vez necesitás la URL de esa app web de nuevo (por ejemplo para
