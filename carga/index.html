@@ -520,6 +520,27 @@
     return String(m[1]).padStart(2,'0') + ':' + m[2];
   }
 
+  // <input type="date"> exige "AAAA-MM-DD" exacto. El servidor puede
+  // devolver la fecha ya en ese formato, o como texto con otro estilo (por
+  // ejemplo "27 - 08 - 26", que usaban versiones anteriores del backend) —
+  // sin esta conversión el campo queda vacío y, si el operario guarda sin
+  // darse cuenta, se borraría la Fecha del bigbag. Si no se puede
+  // interpretar el formato, se deja vacío (nunca se inventa una fecha).
+  function fechaAISO_(f){
+    const s = String(f||'').trim();
+    if(!s) return '';
+    if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    const m = s.match(/^(\d{1,2})\s*[-\/]\s*(\d{1,2})\s*[-\/]\s*(\d{2,4})$/);
+    if(m){
+      const dd = m[1].padStart(2,'0');
+      const mm = m[2].padStart(2,'0');
+      let yyyy = m[3];
+      if(yyyy.length === 2) yyyy = '20' + yyyy;
+      return `${yyyy}-${mm}-${dd}`;
+    }
+    return '';
+  }
+
   // ---------- sugerencias de Producto/Lote/Encargado y próximo N° de BB ----------
   let ULTIMO_LISTADO = [];
 
@@ -681,7 +702,7 @@
       ? 'Todavía sin subir — se corrige en el teléfono.'
       : `Bigbag #${c.bb != null && c.bb !== '' ? c.bb : '—'} · Lote ${c.lote || '—'}`;
 
-    llenarCampoEdicion_('e-fecha', c.fecha);
+    llenarCampoEdicion_('e-fecha', fechaAISO_(c.fecha));
     llenarCampoEdicion_('e-hora', horaZeroPad_(c.hora));
     llenarCampoEdicion_('e-turno', c.turno || 'DIA');
     llenarCampoEdicion_('e-producto', c.producto);
@@ -735,6 +756,11 @@
     const fields = leerCamposEdicion_();
     if(!fields.lote){
       err.textContent = 'Falta el Lote.';
+      err.style.display = 'block';
+      return;
+    }
+    if(!fields.fecha){
+      err.textContent = 'Falta la Fecha.';
       err.style.display = 'block';
       return;
     }
