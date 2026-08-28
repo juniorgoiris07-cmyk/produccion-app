@@ -149,10 +149,11 @@ hay ninguna otra app ni servicio intermedio involucrado.
   cronológico de los turnos usando el N° de bigbag como aproximación — ver
   la vista "Turno" dentro de Informes.
 - Abajo del formulario, Carga muestra los últimos bigbags cargados (los
-  últimos 8, según N° de BigBag) y cada uno tiene una ✕ para eliminarlo —
-  útil si se cargó algo mal. Pide confirmación antes de borrar y no se
-  puede deshacer. Si se borra sin señal, queda igual guardado el pedido de
-  borrado y se aplica solo apenas vuelve la conexión.
+  últimos 8, según N° de BigBag). Tocando la fila (en cualquier parte que
+  no sea la ✕) se abre un formulario para corregir cualquier campo de ese
+  bigbag — útil si algo se tipeó mal. La ✕ lo elimina directamente, pide
+  confirmación antes y no se puede deshacer. Las dos acciones, si se hacen
+  sin señal, quedan guardadas y se aplican solas apenas vuelve la conexión.
 - **Informes** es para consultar lo cargado: lotes, turnos, bloques de 25
   tons y detalle por bigbag. No hace falta tocar nada para el uso diario,
   solo abrir la app. Desde Carga no hay forma de llegar a Informes (son
