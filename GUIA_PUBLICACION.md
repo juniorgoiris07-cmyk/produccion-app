@@ -158,7 +158,10 @@ hay ninguna otra app ni servicio intermedio involucrado.
   tons y detalle por bigbag. No hace falta tocar nada para el uso diario,
   solo abrir la app. Desde Carga no hay forma de llegar a Informes (son
   apps separadas a propósito); si alguien necesita las dos, instala las
-  dos por separado.
+  dos por separado. Cualquier bigbag que tenga una Observación cargada
+  aparece resaltado (un color suave distinto) en todas las listas donde se
+  ve bigbag por bigbag, para detectarlo de un vistazo sin tener que abrir
+  la ficha de cada uno.
 - Las dos apps hablan con la planilla a través de una "app web" de Google
   Apps Script (un pequeño backend, ya armado y funcionando).
 - Si alguna vez necesitás la URL de esa app web de nuevo (por ejemplo para
