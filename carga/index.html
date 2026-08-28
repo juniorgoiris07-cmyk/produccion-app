@@ -508,11 +508,13 @@
       await eliminarCargaRemota(id);
       ULTIMO_LISTADO = ULTIMO_LISTADO.filter(c => c.id !== id);
       renderRecientes();
+      sugerirProximoBB();
       showToast('Bigbag eliminado');
     }catch(ex){
       if(esErrorDeRed(ex)){
         encolarBorrado(id);
         renderRecientes();
+        sugerirProximoBB();
         actualizarBannerConexion();
         showToast('Sin conexión: se va a eliminar apenas vuelva internet', false, true);
       } else {
@@ -531,7 +533,11 @@
     const bbInput = document.getElementById('c-bb');
     // No pisar un número que el operario ya haya tocado a mano.
     if(bbInput.dataset.tocado === '1') return;
-    const maxRemoto = maxBB_(ULTIMO_LISTADO);
+    // Los que están en cola para borrarse no cuentan más para el próximo
+    // número sugerido, aunque el servidor todavía no confirmó el borrado.
+    const borradosPendientes = new Set(getPendientesBorrado());
+    const vigentes = ULTIMO_LISTADO.filter(c => !borradosPendientes.has(c.id));
+    const maxRemoto = maxBB_(vigentes);
     const maxPendiente = maxBB_(getPendientes().map(p => p.fields));
     bbInput.value = Math.max(maxRemoto, maxPendiente) + 1;
   }
