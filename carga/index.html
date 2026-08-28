@@ -98,8 +98,18 @@
   .fila-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
   @media(max-width:360px){.fila-3{grid-template-columns:1fr 1fr;}}
 
-  .footer-link{display:block;text-align:center;font-size:12.5px;color:var(--text-muted);text-decoration:none;padding:14px 0 0;}
-  .footer-link:hover{color:var(--series-1-ink);}
+  .recientes-titulo{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin:22px 0 10px;}
+  .recientes-list{display:flex;flex-direction:column;gap:8px;}
+  .reciente-item{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--gridline);border-radius:9px;padding:9px 11px;box-shadow:var(--shadow-sm);}
+  .reciente-bb{flex-shrink:0;width:38px;height:38px;border-radius:9px;background:rgba(var(--series-1-rgb),.12);color:var(--series-1-ink);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;}
+  .reciente-info{flex:1;min-width:0;}
+  .reciente-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:13px;font-weight:700;color:var(--text-primary);}
+  .reciente-top .lote{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .reciente-bottom{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:11.5px;color:var(--text-muted);margin-top:1px;}
+  .reciente-item.pendiente{border-color:#8a6300;background:var(--warning-bg);}
+  .reciente-item.pendiente .reciente-bb{background:var(--gold-bg);color:var(--series-1-ink);}
+  .reciente-pend-tag{flex-shrink:0;font-size:10px;font-weight:700;color:#8a6300;text-transform:uppercase;letter-spacing:.03em;}
+  .recientes-empty{font-size:12.5px;color:var(--text-muted);padding:4px 0;}
 </style>
 </head>
 <body>
@@ -240,7 +250,8 @@
         </form>
       </div>
 
-      <a class="footer-link" href="../informes/">Ver informes de producción →</a>
+      <div class="recientes-titulo">Últimos bigbags cargados</div>
+      <div class="recientes-list" id="recientes-list"></div>
     </section>
   </div>
 
@@ -304,6 +315,7 @@
     if(!getWebAppUrl()){ mostrarPantalla('setup-screen'); return; }
     mostrarPantalla('app-screen');
     sugerirCamposIniciales();
+    document.getElementById('recientes-list').innerHTML = '<div class="recientes-empty">Cargando...</div>';
     cargarSugerencias();
     actualizarBannerConexion();
   }
@@ -406,6 +418,46 @@
     llenarDatalist_('lista-lotes', valoresUnicos_(lista, 'lote', 20));
     llenarDatalist_('lista-encargados', valoresUnicos_(lista, 'encargado', 20));
     sugerirProximoBB();
+    renderRecientes();
+  }
+
+  // ---------- "Últimos bigbags cargados": para verificar de un vistazo lo
+  // que se acaba de registrar, sin tener que entrar a otra app ----------
+  const CANTIDAD_RECIENTES = 8;
+
+  function renderRecientes(){
+    const cont = document.getElementById('recientes-list');
+    const pendientesEnCurso = getPendientes().map(p => Object.assign({}, p.fields, { __pendiente: true }));
+    const combinados = pendientesEnCurso.concat(ULTIMO_LISTADO.map(c => Object.assign({}, c, { __pendiente: false })));
+    const ordenados = combinados
+      .filter(c => c && c.lote)
+      .sort((a, b) => (Number(b.bb) || 0) - (Number(a.bb) || 0))
+      .slice(0, CANTIDAD_RECIENTES);
+
+    if(!ordenados.length){
+      cont.innerHTML = '<div class="recientes-empty">Todavía no hay bigbags cargados.</div>';
+      return;
+    }
+
+    cont.innerHTML = ordenados.map(c => {
+      const bbTxt = (c.bb === '' || c.bb == null) ? '—' : c.bb;
+      const horaTxt = c.hora || '—';
+      const fechaTxt = c.fecha ? fechaVisualCorta_(c.fecha) : '';
+      const pend = c.__pendiente ? ' pendiente' : '';
+      const tag = c.__pendiente ? '<span class="reciente-pend-tag">Sin subir</span>' : '';
+      return `<div class="reciente-item${pend}">
+        <div class="reciente-bb">#${bbTxt}</div>
+        <div class="reciente-info">
+          <div class="reciente-top"><span class="lote">${(c.lote || '').toString().replace(/</g,'&lt;')}</span>${tag}</div>
+          <div class="reciente-bottom"><span>${(c.producto || '—').toString().replace(/</g,'&lt;')} · ${c.turno || '—'}</span><span>${fechaTxt} ${horaTxt}</span></div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function fechaVisualCorta_(iso){
+    const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? `${m[3]}/${m[2]}` : iso;
   }
 
   function sugerirProximoBB(){
@@ -490,12 +542,14 @@
       await crearCargaRemota(fields);
       ULTIMO_LISTADO.push(fields);
       showToast('Bigbag registrado');
+      renderRecientes();
       limpiarParaSiguienteBigbag_();
     }catch(ex){
       if(esErrorDeRed(ex)){
         encolarCarga(fields);
         showToast('Sin conexión: el bigbag quedó guardado en el teléfono y se sube solo cuando vuelva internet', false, true);
         actualizarBannerConexion();
+        renderRecientes();
         limpiarParaSiguienteBigbag_();
       } else {
         err.textContent = 'No se pudo guardar: ' + ex.message;
@@ -545,6 +599,7 @@
     flushEnCurso = false;
     if(subieron > 0){
       actualizarBannerConexion();
+      renderRecientes();
       if(!silencioso) showToast(subieron === 1 ? 'Se subió 1 bigbag pendiente' : `Se subieron ${subieron} bigbags pendientes`);
     }
   }
