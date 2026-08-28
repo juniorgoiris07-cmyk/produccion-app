@@ -26,8 +26,11 @@
  *     encargado, obs } -> agrega una fila nueva al final de la hoja
  *     "Cargas" (la usa la app de Carga). El ID se genera solo en el
  *     servidor.
- *   - POST { action: "update", id, micro, observaciones } -> actualiza esas
- *     dos columnas para el bigbag con ese ID, y solo esas dos.
+ *   - POST { action: "update", id, ...campos } -> actualiza, para el
+ *     bigbag con ese ID, solo los campos que vinieron en el body (deja el
+ *     resto de la fila igual). La app de Informes manda solo { micro,
+ *     observaciones } al editar un resultado; la app de Carga puede mandar
+ *     los 13 campos para una edición completa.
  *   - POST { action: "delete", id } -> borra por completo la fila del
  *     bigbag con ese ID (la usa la app de Carga, para poder sacar un
  *     bigbag mal cargado sin tener que abrir la planilla).
@@ -47,6 +50,18 @@ const COL = {
   ENCARGADO: 13, OBS: 14
 };
 
+// Nombres de campo que puede mandar un POST -> a qué columna corresponden.
+// "observaciones" es un alias de "obs": la app de Informes históricamente
+// manda ese nombre al editar Micro/Observaciones, y se lo sigue aceptando
+// para no tener que tocarla.
+const FIELD_COL = {
+  fecha: COL.FECHA, hora: COL.HORA, turno: COL.TURNO, producto: COL.PRODUCTO,
+  lote: COL.LOTE, bb: COL.BB, pureza: COL.PUREZA,
+  temperaturaAmbiente: COL.TEMP_AMBIENTE, temperaturaGrano: COL.TEMP_GRANO,
+  humedadGrano: COL.HUMEDAD, micro: COL.MICRO, encargado: COL.ENCARGADO,
+  obs: COL.OBS, observaciones: COL.OBS
+};
+
 function doGet(e) {
   return respond(getAllCargas());
 }
@@ -55,7 +70,7 @@ function doPost(e) {
   try {
     const body = JSON.parse(e.postData.contents);
     if (body.action === 'update') {
-      return respond(updateCarga(body.id, body.micro, body.observaciones));
+      return respond(updateCarga(body.id, body));
     }
     if (body.action === 'create') {
       return respond(crearCarga(body));
@@ -116,7 +131,14 @@ function getAllCargas() {
   return { ok: true, cargas: cargas };
 }
 
-function updateCarga(id, micro, observaciones) {
+/**
+ * Actualiza un bigbag existente por ID. Solo toca las columnas cuyo campo
+ * vino en el body — así sirve tanto para la edición completa que hace la
+ * app de Carga (manda los 13 campos) como para la edición chica de
+ * Micro/Observaciones que hace la app de Informes (manda solo esos dos),
+ * sin pisar el resto de la fila con blancos.
+ */
+function updateCarga(id, body) {
   if (!id) return { ok: false, error: 'Falta el ID del bigbag' };
   const lock = LockService.getScriptLock();
   const gotLock = lock.tryLock(10000);
@@ -129,8 +151,12 @@ function updateCarga(id, micro, observaciones) {
     for (let i = 0; i < ids.length; i++) {
       if (String(ids[i][0]) === String(id)) {
         const row = i + 2;
-        sheet.getRange(row, COL.MICRO).setValue(micro);
-        sheet.getRange(row, COL.OBS).setValue(observaciones);
+        Object.keys(FIELD_COL).forEach(function (campo) {
+          if (Object.prototype.hasOwnProperty.call(body, campo)) {
+            const valor = body[campo];
+            sheet.getRange(row, FIELD_COL[campo]).setValue(valor === '' || valor === undefined ? '' : valor);
+          }
+        });
         SpreadsheetApp.flush();
         return { ok: true };
       }
