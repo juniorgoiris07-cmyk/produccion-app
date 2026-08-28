@@ -28,6 +28,9 @@
  *     servidor.
  *   - POST { action: "update", id, micro, observaciones } -> actualiza esas
  *     dos columnas para el bigbag con ese ID, y solo esas dos.
+ *   - POST { action: "delete", id } -> borra por completo la fila del
+ *     bigbag con ese ID (la usa la app de Carga, para poder sacar un
+ *     bigbag mal cargado sin tener que abrir la planilla).
  *
  * Se puede seguir cargando filas a mano directo en la hoja "Cargas"
  * (Fecha, Hora, Turno, Producto, Lote, BB N°, Pureza, Temperatura
@@ -56,6 +59,9 @@ function doPost(e) {
     }
     if (body.action === 'create') {
       return respond(crearCarga(body));
+    }
+    if (body.action === 'delete') {
+      return respond(eliminarCarga(body.id));
     }
     return respond({ ok: false, error: 'Acción desconocida: ' + body.action });
   } catch (err) {
@@ -168,6 +174,34 @@ function crearCarga(body) {
     sheet.appendRow(fila);
     SpreadsheetApp.flush();
     return { ok: true, id: id };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * Borra por completo la fila de un bigbag, por ID. La usa la app de Carga
+ * cuando alguien carga uno mal y lo quiere sacar. Es un borrado real de la
+ * fila (no solo se vacía) — no se puede deshacer desde la app.
+ */
+function eliminarCarga(id) {
+  if (!id) return { ok: false, error: 'Falta el ID del bigbag' };
+  const lock = LockService.getScriptLock();
+  const gotLock = lock.tryLock(10000);
+  if (!gotLock) return { ok: false, error: 'La planilla está ocupada, probá de nuevo en unos segundos' };
+  try {
+    const sheet = getSheet_();
+    const lastRow = sheet.getLastRow();
+    if (lastRow < 2) return { ok: false, error: 'No se encontró el bigbag' };
+    const ids = sheet.getRange(2, COL.ID, lastRow - 1, 1).getValues();
+    for (let i = 0; i < ids.length; i++) {
+      if (String(ids[i][0]) === String(id)) {
+        sheet.deleteRow(i + 2);
+        SpreadsheetApp.flush();
+        return { ok: true };
+      }
+    }
+    return { ok: false, error: 'No se encontró el bigbag (el ID no coincide con ninguna fila)' };
   } finally {
     lock.releaseLock();
   }
