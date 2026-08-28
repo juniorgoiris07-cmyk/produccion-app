@@ -110,6 +110,9 @@
   .reciente-item.pendiente .reciente-bb{background:var(--gold-bg);color:var(--series-1-ink);}
   .reciente-pend-tag{flex-shrink:0;font-size:10px;font-weight:700;color:#8a6300;text-transform:uppercase;letter-spacing:.03em;}
   .recientes-empty{font-size:12.5px;color:var(--text-muted);padding:4px 0;}
+  .reciente-delete{flex-shrink:0;width:30px;height:30px;border-radius:50%;border:none;background:transparent;color:var(--text-muted);font-size:15px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background-color .15s ease,color .15s ease;}
+  .reciente-delete:hover{background:var(--critical-bg);color:var(--critical);}
+  .reciente-delete:disabled{opacity:.4;cursor:default;}
 </style>
 </head>
 <body>
@@ -265,12 +268,16 @@
   const WEBAPP_URL_KEY = 'gs_webapp_url';
   const DATA_CACHE_KEY = 'gp_carga_cache';       // último listado visto (para sugerencias offline)
   const PENDING_KEY    = 'gp_pending_cargas';    // bigbags registrados sin conexión, sin subir todavía
+  const PENDING_DEL_KEY = 'gp_pending_borrados'; // IDs para borrar sin conexión, sin borrar todavía
 
   function getWebAppUrl(){ return localStorage.getItem(WEBAPP_URL_KEY); }
   function setWebAppUrl(u){ localStorage.setItem(WEBAPP_URL_KEY, u); }
 
   function getPendientes(){ try { return JSON.parse(localStorage.getItem(PENDING_KEY)) || []; } catch(e){ return []; } }
   function setPendientes(list){ localStorage.setItem(PENDING_KEY, JSON.stringify(list)); }
+
+  function getPendientesBorrado(){ try { return JSON.parse(localStorage.getItem(PENDING_DEL_KEY)) || []; } catch(e){ return []; } }
+  function setPendientesBorrado(list){ localStorage.setItem(PENDING_DEL_KEY, JSON.stringify(list)); }
 
   function esErrorDeRed(ex){
     if(!navigator.onLine) return true;
@@ -301,6 +308,19 @@
     if(!res.ok) throw new Error(`Error ${res.status}`);
     const data = await res.json();
     if(!data.ok) throw new Error(data.error || 'No se pudo guardar el bigbag.');
+    return data;
+  }
+
+  async function eliminarCargaRemota(id){
+    const url = getWebAppUrl();
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'delete', id })
+    });
+    if(!res.ok) throw new Error(`Error ${res.status}`);
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'No se pudo eliminar el bigbag.');
     return data;
   }
 
@@ -425,10 +445,17 @@
   // que se acaba de registrar, sin tener que entrar a otra app ----------
   const CANTIDAD_RECIENTES = 8;
 
+  function escHtml_(v){ return (v == null ? '' : String(v)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
   function renderRecientes(){
     const cont = document.getElementById('recientes-list');
-    const pendientesEnCurso = getPendientes().map(p => Object.assign({}, p.fields, { __pendiente: true }));
-    const combinados = pendientesEnCurso.concat(ULTIMO_LISTADO.map(c => Object.assign({}, c, { __pendiente: false })));
+    const borradosPendientes = new Set(getPendientesBorrado());
+    const pendientesEnCurso = getPendientes().map(p => Object.assign({}, p.fields, { __pendiente: true, __localId: p.localId }));
+    // Los que ya están en cola para borrarse no se muestran más — aunque el
+    // servidor todavía no confirmó el borrado, para el operario ya están
+    // eliminados.
+    const delServidor = ULTIMO_LISTADO.filter(c => !borradosPendientes.has(c.id)).map(c => Object.assign({}, c, { __pendiente: false }));
+    const combinados = pendientesEnCurso.concat(delServidor);
     const ordenados = combinados
       .filter(c => c && c.lote)
       .sort((a, b) => (Number(b.bb) || 0) - (Number(a.bb) || 0))
@@ -445,15 +472,55 @@
       const fechaTxt = c.fecha ? fechaVisualCorta_(c.fecha) : '';
       const pend = c.__pendiente ? ' pendiente' : '';
       const tag = c.__pendiente ? '<span class="reciente-pend-tag">Sin subir</span>' : '';
+      const dataAttrs = c.__pendiente
+        ? `data-localid="${escHtml_(c.__localId)}"`
+        : `data-id="${escHtml_(c.id)}"`;
       return `<div class="reciente-item${pend}">
         <div class="reciente-bb">#${bbTxt}</div>
         <div class="reciente-info">
-          <div class="reciente-top"><span class="lote">${(c.lote || '').toString().replace(/</g,'&lt;')}</span>${tag}</div>
-          <div class="reciente-bottom"><span>${(c.producto || '—').toString().replace(/</g,'&lt;')} · ${c.turno || '—'}</span><span>${fechaTxt} ${horaTxt}</span></div>
+          <div class="reciente-top"><span class="lote">${escHtml_(c.lote)}</span>${tag}</div>
+          <div class="reciente-bottom"><span>${escHtml_(c.producto || '—')} · ${escHtml_(c.turno || '—')}</span><span>${fechaTxt} ${horaTxt}</span></div>
         </div>
+        <button type="button" class="reciente-delete" ${dataAttrs} data-resumen="${escHtml_('bigbag #' + bbTxt + ' del lote ' + (c.lote || ''))}" title="Eliminar" aria-label="Eliminar">✕</button>
       </div>`;
     }).join('');
   }
+
+  document.getElementById('recientes-list').addEventListener('click', async function(e){
+    const btn = e.target.closest('.reciente-delete');
+    if(!btn) return;
+    const id = btn.dataset.id;
+    const localId = btn.dataset.localid;
+    const resumen = btn.dataset.resumen || 'este bigbag';
+    if(!confirm(`¿Eliminar ${resumen}? No se puede deshacer.`)) return;
+
+    if(localId){
+      // Todavía no se había subido: alcanza con sacarlo de la cola local.
+      setPendientes(getPendientes().filter(p => p.localId !== localId));
+      renderRecientes();
+      sugerirProximoBB();
+      showToast('Bigbag eliminado de la cola');
+      return;
+    }
+
+    btn.disabled = true;
+    try{
+      await eliminarCargaRemota(id);
+      ULTIMO_LISTADO = ULTIMO_LISTADO.filter(c => c.id !== id);
+      renderRecientes();
+      showToast('Bigbag eliminado');
+    }catch(ex){
+      if(esErrorDeRed(ex)){
+        encolarBorrado(id);
+        renderRecientes();
+        actualizarBannerConexion();
+        showToast('Sin conexión: se va a eliminar apenas vuelva internet', false, true);
+      } else {
+        btn.disabled = false;
+        showToast('No se pudo eliminar: ' + ex.message, true);
+      }
+    }
+  });
 
   function fechaVisualCorta_(iso){
     const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -479,6 +546,7 @@
       localStorage.setItem(DATA_CACHE_KEY, JSON.stringify({ cargas: lista, ts: new Date().toISOString() }));
       aplicarSugerenciasListado(lista);
       await sincronizarPendientes(true);
+      await sincronizarBorrados(true);
     }catch(ex){
       const cacheRaw = localStorage.getItem(DATA_CACHE_KEY);
       if(cacheRaw){
@@ -539,8 +607,11 @@
     }
     btn.disabled = true; btn.textContent = 'Guardando...';
     try{
-      await crearCargaRemota(fields);
-      ULTIMO_LISTADO.push(fields);
+      const resultado = await crearCargaRemota(fields);
+      // Se guarda el ID que asignó el servidor: si no, el bigbag recién
+      // creado aparecería en "Últimos cargados" pero sin poderse borrar
+      // hasta el próximo refresco de datos.
+      ULTIMO_LISTADO.push(Object.assign({}, fields, { id: resultado.id }));
       showToast('Bigbag registrado');
       renderRecientes();
       limpiarParaSiguienteBigbag_();
@@ -604,25 +675,77 @@
     }
   }
 
+  // ---------- cola offline de borrados: tampoco se pierde un "eliminar" ----------
+  function encolarBorrado(id){
+    const pendientes = getPendientesBorrado();
+    if(!pendientes.includes(id)) pendientes.push(id);
+    setPendientesBorrado(pendientes);
+  }
+
+  let flushBorradosEnCurso = false;
+  async function sincronizarBorrados(silencioso){
+    if(flushBorradosEnCurso) return;
+    const pendientes = getPendientesBorrado();
+    if(!pendientes.length) return;
+    flushBorradosEnCurso = true;
+
+    let borrados = 0;
+    let cortarPorRed = false;
+    const restantes = [];
+
+    for(const id of pendientes){
+      if(cortarPorRed){ restantes.push(id); continue; }
+      try{
+        await eliminarCargaRemota(id);
+        borrados++;
+      }catch(ex){
+        if(esErrorDeRed(ex)){
+          cortarPorRed = true;
+          restantes.push(id);
+        }
+        // Si el error no es de red (ej. "no se encontró"), se descarta el
+        // pendiente igual — reintentarlo por siempre no tendría sentido.
+      }
+    }
+
+    setPendientesBorrado(restantes);
+    flushBorradosEnCurso = false;
+    if(borrados > 0){
+      // Los que sí se pudieron borrar ahora ya no tienen que aparecer más,
+      // aunque el listado en memoria (ULTIMO_LISTADO) todavía sea el de
+      // antes de este borrado.
+      const idsBorradosAhora = pendientes.filter(id => !restantes.includes(id));
+      ULTIMO_LISTADO = ULTIMO_LISTADO.filter(c => !idsBorradosAhora.includes(c.id));
+      actualizarBannerConexion();
+      renderRecientes();
+      if(!silencioso) showToast(borrados === 1 ? 'Se eliminó 1 bigbag pendiente' : `Se eliminaron ${borrados} bigbags pendientes`);
+    }
+  }
+
   function actualizarBannerConexion(){
     const banner = document.getElementById('conn-banner');
     const pendientes = getPendientes();
+    const borrados = getPendientesBorrado();
+    const totalPend = pendientes.length + borrados.length;
     if(!navigator.onLine){
       banner.className = 'conn-banner offline';
-      banner.innerHTML = `<span class="dot"></span> Sin conexión${pendientes.length ? ' · ' + pendientes.length + ' bigbag(s) guardado(s) en el teléfono, pendiente(s) de subir' : ' — los bigbags que cargues se guardan en el teléfono'}`;
+      banner.innerHTML = `<span class="dot"></span> Sin conexión${totalPend ? ' · ' + totalPend + ' cambio(s) sin subir todavía' : ' — los bigbags que cargues se guardan en el teléfono'}`;
       banner.classList.remove('hidden');
-    } else if(pendientes.length){
+    } else if(totalPend){
       banner.className = 'conn-banner pending';
-      banner.innerHTML = `<span class="dot"></span> Subiendo ${pendientes.length} bigbag(s) pendiente(s)...`;
+      banner.innerHTML = `<span class="dot"></span> Sincronizando ${totalPend} cambio(s) pendiente(s)...`;
       banner.classList.remove('hidden');
     } else {
       banner.classList.add('hidden');
     }
   }
 
-  window.addEventListener('online', ()=>{ actualizarBannerConexion(); sincronizarPendientes().then(cargarSugerencias); });
+  window.addEventListener('online', ()=>{ actualizarBannerConexion(); sincronizarPendientes().then(()=>sincronizarBorrados()).then(cargarSugerencias); });
   window.addEventListener('offline', actualizarBannerConexion);
-  setInterval(()=>{ if(navigator.onLine){ sincronizarPendientes(true); } actualizarBannerConexion(); }, 30000);
+  setInterval(()=>{
+    if(navigator.onLine){ sincronizarPendientes(true).then(()=>sincronizarBorrados(true)); }
+    actualizarBannerConexion();
+  }, 30000);
 
   function showToast(msg, isError, isWarn){
     const t = document.getElementById('toast');
