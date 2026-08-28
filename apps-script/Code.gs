@@ -21,14 +21,20 @@
  * Cómo se usa:
  *   - GET  -> devuelve todos los bigbags cargados, en JSON. La app de
  *     Informes agrupa por Lote y arma el lote completo/en curso.
+ *   - POST { action: "create", fecha, hora, turno, producto, lote, bb,
+ *     pureza, temperaturaAmbiente, temperaturaGrano, humedadGrano, micro,
+ *     encargado, obs } -> agrega una fila nueva al final de la hoja
+ *     "Cargas" (la usa la app de Carga). El ID se genera solo en el
+ *     servidor.
  *   - POST { action: "update", id, micro, observaciones } -> actualiza esas
  *     dos columnas para el bigbag con ese ID, y solo esas dos.
  *
- * No hace falta tocar nada de este archivo para el uso normal: simplemente
- * cargá filas nuevas en la hoja "Cargas" (Fecha, Hora, Turno, Producto,
- * Lote, BB N°, Pureza, Temperatura ambiente, Temperatura del grano,
- * Humedad del grano, Micro, Encargado, Observaciones) y el ID de la
- * columna A se completa solo apenas escribís el Lote.
+ * Se puede seguir cargando filas a mano directo en la hoja "Cargas"
+ * (Fecha, Hora, Turno, Producto, Lote, BB N°, Pureza, Temperatura
+ * ambiente, Temperatura del grano, Humedad del grano, Micro, Encargado,
+ * Observaciones) igual que siempre — el ID de la columna A se completa
+ * solo apenas escribís el Lote (ver onEdit más abajo). La app de Carga usa
+ * la acción "create" de arriba, que hace lo mismo pero desde el celular.
  */
 
 const SHEET_NAME = 'Cargas';
@@ -47,6 +53,9 @@ function doPost(e) {
     const body = JSON.parse(e.postData.contents);
     if (body.action === 'update') {
       return respond(updateCarga(body.id, body.micro, body.observaciones));
+    }
+    if (body.action === 'create') {
+      return respond(crearCarga(body));
     }
     return respond({ ok: false, error: 'Acción desconocida: ' + body.action });
   } catch (err) {
@@ -121,6 +130,44 @@ function updateCarga(id, micro, observaciones) {
       }
     }
     return { ok: false, error: 'No se encontró el bigbag (el ID no coincide con ninguna fila)' };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * Agrega una fila nueva a la hoja "Cargas" — la usa la app de Carga cuando
+ * alguien registra un bigbag desde el celular. El ID se genera acá mismo
+ * (Utilities.getUuid()), porque appendRow() no dispara el trigger onEdit
+ * (ese trigger solo corre para ediciones manuales de una celda), así que
+ * si no se genera acá la fila quedaría sin ID.
+ */
+function crearCarga(body) {
+  if (!body.lote) return { ok: false, error: 'Falta el Lote' };
+  const lock = LockService.getScriptLock();
+  const gotLock = lock.tryLock(10000);
+  if (!gotLock) return { ok: false, error: 'La planilla está ocupada, probá de nuevo en unos segundos' };
+  try {
+    const sheet = getSheet_();
+    const id = Utilities.getUuid();
+    const fila = [];
+    fila[COL.ID - 1] = id;
+    fila[COL.FECHA - 1] = body.fecha || '';
+    fila[COL.HORA - 1] = body.hora || '';
+    fila[COL.TURNO - 1] = body.turno || '';
+    fila[COL.PRODUCTO - 1] = body.producto || '';
+    fila[COL.LOTE - 1] = body.lote || '';
+    fila[COL.BB - 1] = body.bb === '' || body.bb === undefined ? '' : body.bb;
+    fila[COL.PUREZA - 1] = body.pureza === '' || body.pureza === undefined ? '' : body.pureza;
+    fila[COL.TEMP_AMBIENTE - 1] = body.temperaturaAmbiente === '' || body.temperaturaAmbiente === undefined ? '' : body.temperaturaAmbiente;
+    fila[COL.TEMP_GRANO - 1] = body.temperaturaGrano === '' || body.temperaturaGrano === undefined ? '' : body.temperaturaGrano;
+    fila[COL.HUMEDAD - 1] = body.humedadGrano === '' || body.humedadGrano === undefined ? '' : body.humedadGrano;
+    fila[COL.MICRO - 1] = body.micro || '';
+    fila[COL.ENCARGADO - 1] = body.encargado || '';
+    fila[COL.OBS - 1] = body.obs || '';
+    sheet.appendRow(fila);
+    SpreadsheetApp.flush();
+    return { ok: true, id: id };
   } finally {
     lock.releaseLock();
   }
