@@ -8,7 +8,12 @@ clics en páginas web.
 
 ```
 pwa-produccion/
-├── index.html            (redirige directo a informes/)
+├── index.html            (pantalla para elegir qué app abrir)
+├── carga/                 (la app — registrar un bigbag nuevo)
+│   ├── index.html
+│   ├── manifest.webmanifest
+│   ├── sw.js
+│   └── icons/
 ├── informes/              (la app — ver lotes, turnos y bloques cargados)
 │   ├── index.html
 │   ├── manifest.webmanifest
@@ -20,6 +25,12 @@ pwa-produccion/
 │                            Script, dentro de la planilla)
 └── GUIA_PUBLICACION.md    (este archivo)
 ```
+
+Son dos apps separadas que comparten la misma planilla: **Carga** para
+registrar bigbags nuevos desde el celular, e **Informes** para consultarlos
+después. Las dos se instalan por separado (ver Paso 5), y las dos piden la
+misma URL de Apps Script la primera vez — si ya configuraste una, la otra
+la hereda sola en el mismo teléfono.
 
 ## Paso 1 — Crear cuenta en GitHub (si no tenés una)
 
@@ -40,12 +51,12 @@ pwa-produccion/
 1. En la página del repositorio recién creado, vas a ver un link que dice
    **uploading an existing file** (o el botón **Add file → Upload files**).
 2. Arrastrá **toda la carpeta `pwa-produccion`** (o su contenido: el
-   `index.html` de la raíz y la carpeta `informes/` completa) a esa
-   pantalla.
+   `index.html` de la raíz y las carpetas `carga/` e `informes/`
+   completas) a esa pantalla.
    - Importante: tiene que quedar la estructura de carpetas tal cual está.
      Si tu navegador no te deja arrastrar carpetas enteras, subí primero el
-     `index.html` de la raíz, y después entrá a la subcarpeta `informes/` y
-     repetí "Add file → Upload files" ahí adentro.
+     `index.html` de la raíz, y después entrá a cada subcarpeta (`carga/`,
+     `informes/`) y repetí "Add file → Upload files" ahí adentro.
 3. Abajo de todo, tocá **Commit changes** (podés dejar el mensaje que viene
    por defecto).
 
@@ -62,12 +73,20 @@ pwa-produccion/
    https://TU-USUARIO.github.io/produccion-app/
    ```
 
-Esa es tu URL fija con HTTPS. La app queda en:
+Esa es tu URL fija con HTTPS. Abriéndola directo en la raíz vas a ver una
+pantalla para elegir qué app abrir:
 
-- `https://TU-USUARIO.github.io/produccion-app/informes/` (o directo en la
-  raíz, que redirige sola ahí).
+- `https://TU-USUARIO.github.io/produccion-app/carga/` — Carga (registrar
+  bigbags).
+- `https://TU-USUARIO.github.io/produccion-app/informes/` — Informes (ver
+  lo cargado).
 
 ## Paso 5 — Instalar en el celular
+
+Son dos apps, así que hay que instalar cada una por separado (mismos pasos,
+repetidos con cada URL de arriba). Quien solo carga bigbags necesita
+Carga; quien solo consulta necesita Informes; alguien que hace las dos
+cosas puede instalar ambas.
 
 ### Android (Chrome)
 1. Abrí la URL de la app en Chrome.
@@ -83,7 +102,7 @@ Esa es tu URL fija con HTTPS. La app queda en:
 3. Elegí **"Agregar a pantalla de inicio"**.
 4. Confirmá el nombre y tocá **Agregar**.
 
-Repetí esto en cada teléfono de jefes/gerencia.
+Repetí esto (con cada app que corresponda) en cada teléfono.
 
 ## Cómo desinstalarla
 
@@ -92,16 +111,17 @@ Eliminar app.
 
 ## Primer uso en cada teléfono
 
-Esta app no tiene usuario ni contraseña — no hace falta loguearse. La
-primera vez que se abre en un teléfono nuevo, pide una sola cosa: la **URL
-de la app web de Google Apps Script** (ver la sección "Cómo funciona la
-app" más abajo). Una vez cargada esa URL, queda guardada en el teléfono y
-no la vuelve a pedir.
+Ninguna de las dos apps tiene usuario ni contraseña — no hace falta
+loguearse. La primera vez que se abre alguna en un teléfono nuevo, pide
+una sola cosa: la **URL de la app web de Google Apps Script** (ver la
+sección "Cómo funciona todo esto" más abajo). Una vez cargada esa URL,
+queda guardada en el teléfono y la comparten las dos apps — si instalás
+la segunda después, no te la vuelve a pedir.
 
-## Cómo funciona la app (Google Sheets + Apps Script)
+## Cómo funciona todo esto (Google Sheets + Apps Script)
 
-La app lee los datos de una planilla de Google Sheets que se carga a mano
-— no hay ninguna otra app ni servicio intermedio involucrado.
+Las dos apps leen y escriben en una misma planilla de Google Sheets — no
+hay ninguna otra app ni servicio intermedio involucrado.
 
 - La planilla se llama **"Gestión de Producción"** y tiene una hoja
   llamada **"Cargas"** con las columnas: Fecha, Hora, Turno, Producto,
@@ -110,68 +130,82 @@ La app lee los datos de una planilla de Google Sheets que se carga a mano
   izquierda se completa sola, no hay que tocarla). Cada fila es UN bigbag
   individual, no un lote entero — un lote grande simplemente tiene varias
   filas con el mismo N° de Lote.
-- Cargá cada bigbag como una fila nueva, igual que en cualquier planilla.
-  Apenas escribís el número de Lote, esa fila queda identificada
-  automáticamente (columna ID).
-- Fecha y Hora se completan las dos a mano — como la carga a la planilla
-  no se hace en el momento en que se produce cada bigbag, no tiene sentido
-  autocompletarlas con la hora del reloj (sería la hora en que alguien
-  tipeó el dato, no la hora real). Por eso, cuando Hora no está cargada
-  (lo más común hoy), la app reconstruye el orden cronológico de los
-  turnos usando el N° de bigbag como aproximación — ver la vista "Turno"
-  dentro de la app.
-- La app lee esa planilla a través de una "app web" de Google Apps Script
-  (un pequeño backend, ya armado y funcionando) — no hace falta tocar nada
-  de esto para el uso diario, solo cargar filas en la planilla.
+- **Carga** es la forma normal de agregar cada bigbag: un formulario que
+  sugiere solo Fecha, Hora, Turno y el próximo N° de BigBag (según lo
+  último cargado), y al tocar "Registrar bigbag" agrega la fila directo en
+  la planilla. Si no hay señal, el bigbag queda guardado en el teléfono y
+  se sube solo cuando vuelve la conexión (nunca se pierde un dato por
+  falta de señal). También se puede seguir cargando filas a mano
+  directamente en la planilla, igual que antes — las dos formas conviven
+  sin problema.
+- Fecha y Hora, cuando se cargan desde la app de Carga, quedan con el
+  momento real en que se registró el bigbag (la app sugiere la hora del
+  reloj del teléfono, editable). En cambio, si se completan a mano en la
+  planilla y no coinciden con el momento real de producción, no importa:
+  cuando Hora no está cargada la app de Informes reconstruye el orden
+  cronológico de los turnos usando el N° de bigbag como aproximación — ver
+  la vista "Turno" dentro de Informes.
+- **Informes** es para consultar lo cargado: lotes, turnos, bloques de 25
+  tons y detalle por bigbag. No hace falta tocar nada para el uso diario,
+  solo abrir la app.
+- Las dos apps hablan con la planilla a través de una "app web" de Google
+  Apps Script (un pequeño backend, ya armado y funcionando).
 - Si alguna vez necesitás la URL de esa app web de nuevo (por ejemplo para
   instalarla en un teléfono nuevo), la conseguís abriendo la planilla →
   **Extensiones → Apps Script → Implementar → Administrar
   implementaciones**.
-- Desde la app, tocando "Resultado Micro / Observaciones" en el detalle de
-  un bigbag, se puede editar ese resultado — el cambio se guarda
+- Desde Informes, tocando "Resultado Micro / Observaciones" en el detalle
+  de un bigbag, se puede editar ese resultado — el cambio se guarda
   directamente en la planilla, y si no hay señal se guarda en el teléfono
-  y se sube solo cuando vuelve la conexión.
+  y se sube solo cuando vuelve la conexión (mismo mecanismo que usa Carga
+  para no perder datos sin señal).
 
 ## Cómo agregar un campo/columna nuevo más adelante
 
 Cuando quieran sumar un dato nuevo a la planilla (por ejemplo una columna
-más de análisis), hay 3 lugares que tocar siempre, en este orden:
+más de análisis), hay 4 lugares que tocar siempre, en este orden:
 
 1. **La planilla + `apps-script/Code.gs`**: agregar la columna nueva en la
    hoja "Cargas", sumarla al objeto `COL` (con el número de columna que le
-   corresponda) y agregar esa propiedad en `getAllCargas()` (el bloque que
-   arma cada `cargas.push({...})`). Si es un número (como Pureza o
-   Temperatura), usar `numOrNull_(...)` igual que las demás; si es texto,
-   alcanza con `row[COL.NUEVOCAMPO - 1] || ''`. Este cambio se pega
-   directo en Extensiones → Apps Script dentro de la planilla (la copia en
-   `apps-script/Code.gs` de este repositorio es solo de referencia).
-2. **`informes/index.html`**: decidir dónde tiene que aparecer ese dato
+   corresponda), agregar esa propiedad en `getAllCargas()` (el bloque que
+   arma cada `cargas.push({...})`) y también en `crearCarga()` (el bloque
+   que arma la fila nueva, para que la app de Carga también la mande). Si
+   es un número (como Pureza o Temperatura), usar `numOrNull_(...)` igual
+   que las demás; si es texto, alcanza con `row[COL.NUEVOCAMPO - 1] || ''`.
+   Este cambio se pega directo en Extensiones → Apps Script dentro de la
+   planilla (la copia en `apps-script/Code.gs` de este repositorio es solo
+   de referencia).
+2. **`carga/index.html`**: agregar el campo nuevo al formulario (un
+   `<div class="field">` más) y sumarlo en `leerCampos_()` para que se
+   mande al guardar.
+3. **`informes/index.html`**: decidir dónde tiene que aparecer ese dato
    nuevo — en la ficha de un bigbag (`abrirModal`), en el promedio de un
    bloque de 25 tons (agregarlo a `promedio_` y a los templates que
    muestran `promedioPureza`, etc.), en la búsqueda, o en varios lugares a
    la vez.
-3. **`informes/sw.js`**: subir en 1 el número de `CACHE_NAME` (por ejemplo
-   `v26` → `v27`) para que los teléfonos que ya tienen la app instalada
-   vean el cambio.
+4. **`carga/sw.js` e `informes/sw.js`**: subir en 1 el número de
+   `CACHE_NAME` de cada uno (por ejemplo `v1` → `v2`, o `v27` → `v28`) para
+   que los teléfonos que ya tienen la app instalada vean el cambio.
 
 Avisame cuándo tengan definidos los campos nuevos y lo hacemos siguiendo
 esta misma receta.
 
 ## Si actualizás el contenido más adelante
 
-Cuando yo te pase una nueva versión de `informes/index.html`, el proceso
-es:
+Cuando yo te pase una nueva versión de `carga/index.html` o de
+`informes/index.html`, el proceso es:
 
 1. Subir el archivo nuevo al mismo repositorio de GitHub, reemplazando el
    anterior (Add file → Upload files, mismo nombre, GitHub pregunta si
    querés reemplazarlo).
-2. **Importante**: para que los teléfonos que ya tienen la app instalada
-   vean la actualización, hay que subir también una versión de
-   `informes/sw.js` con el número de caché cambiado — por ejemplo
-   `CACHE_NAME = 'informes-produccion-v27'` en vez de `v26`. Si no se
-   cambia ese número, el teléfono puede seguir mostrando la versión vieja
-   guardada. Avisame cuando quieras actualizar y te dejo listo ese archivo
-   con el número ya incrementado.
+2. **Importante**: para que los teléfonos que ya tienen esa app instalada
+   vean la actualización, hay que subir también una versión de su `sw.js`
+   con el número de caché cambiado — por ejemplo
+   `CACHE_NAME = 'informes-produccion-v28'` en vez de `v27` (o
+   `'carga-produccion-v2'` en vez de `v1`). Si no se cambia ese número, el
+   teléfono puede seguir mostrando la versión vieja guardada. Avisame
+   cuando quieras actualizar y te dejo listo ese archivo con el número ya
+   incrementado.
 
 ## Nota de seguridad (para tener en cuenta, no urgente)
 
