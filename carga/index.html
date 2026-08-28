@@ -100,7 +100,8 @@
 
   .recientes-titulo{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin:22px 0 10px;}
   .recientes-list{display:flex;flex-direction:column;gap:8px;}
-  .reciente-item{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--gridline);border-radius:9px;padding:9px 11px;box-shadow:var(--shadow-sm);}
+  .reciente-item{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--gridline);border-radius:9px;padding:9px 11px;box-shadow:var(--shadow-sm);cursor:pointer;transition:border-color .15s ease, box-shadow .15s ease;}
+  .reciente-item:hover{border-color:var(--series-1);box-shadow:var(--shadow-md);}
   .reciente-bb{flex-shrink:0;width:38px;height:38px;border-radius:9px;background:rgba(var(--series-1-rgb),.12);color:var(--series-1-ink);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;}
   .reciente-info{flex:1;min-width:0;}
   .reciente-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:13px;font-weight:700;color:var(--text-primary);}
@@ -113,6 +114,15 @@
   .reciente-delete{flex-shrink:0;width:30px;height:30px;border-radius:50%;border:none;background:transparent;color:var(--text-muted);font-size:15px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background-color .15s ease,color .15s ease;}
   .reciente-delete:hover{background:var(--critical-bg);color:var(--critical);}
   .reciente-delete:disabled{opacity:.4;cursor:default;}
+
+  .modal-overlay{position:fixed;inset:0;background:rgba(20,20,15,0.45);display:flex;align-items:center;justify-content:center;padding:20px;z-index:60;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .22s ease,visibility 0s linear .22s;}
+  .modal-overlay.visible{opacity:1;visibility:visible;pointer-events:auto;transition:opacity .22s ease,visibility 0s linear 0s;}
+  .modal-card{background:var(--card);border-radius:14px;width:100%;max-width:420px;max-height:88vh;overflow-y:auto;padding:20px;position:relative;box-shadow:0 16px 40px rgba(20,20,15,0.22);transform:translateY(16px) scale(.96);opacity:0;transition:transform .28s cubic-bezier(.2,.8,.2,1),opacity .22s ease;}
+  .modal-overlay.visible .modal-card{transform:translateY(0) scale(1);opacity:1;}
+  .modal-close{position:absolute;top:12px;right:12px;border:1px solid var(--gridline);background:var(--surface-2);color:var(--text-primary);width:30px;height:30px;border-radius:50%;font-size:15px;cursor:pointer;line-height:1;transition:background-color .15s ease;}
+  .modal-close:hover{background:var(--gridline);}
+  .modal-title{font-size:17px;font-weight:700;margin:0 0 2px;padding-right:34px;letter-spacing:-.01em;}
+  .modal-subtitle{font-size:12.5px;color:var(--text-secondary);margin:0 0 16px;}
 </style>
 </head>
 <body>
@@ -261,6 +271,86 @@
 </div>
 <div class="toast" id="toast"></div>
 
+<div class="modal-overlay" id="edit-modal" onclick="if(event.target===this) cerrarModalEdicion()">
+  <div class="modal-card">
+    <button class="modal-close" type="button" onclick="cerrarModalEdicion()">✕</button>
+    <div class="modal-title">Editar bigbag</div>
+    <div class="modal-subtitle" id="edit-subtitle"></div>
+    <div class="error-msg" id="edit-error"></div>
+    <form id="edit-form">
+      <div class="fila-2">
+        <div class="field">
+          <label>Fecha</label>
+          <input type="date" id="e-fecha">
+        </div>
+        <div class="field">
+          <label>Hora</label>
+          <input type="time" id="e-hora">
+        </div>
+      </div>
+      <div class="field">
+        <label>Turno</label>
+        <select id="e-turno">
+          <option value="DIA">DIA (6:00 a 18:00)</option>
+          <option value="NOCHE">NOCHE (18:00 a 6:00)</option>
+        </select>
+      </div>
+      <div class="fila-2">
+        <div class="field">
+          <label>Producto</label>
+          <input type="text" id="e-producto" list="lista-productos" autocomplete="off">
+        </div>
+        <div class="field">
+          <label>Lote</label>
+          <input type="text" id="e-lote" list="lista-lotes" autocomplete="off" required>
+        </div>
+      </div>
+      <div class="field">
+        <label>N° de BigBag</label>
+        <input type="number" id="e-bb" min="1" step="1">
+      </div>
+      <div class="fila-2">
+        <div class="field">
+          <label>Pureza (%)</label>
+          <input type="number" id="e-pureza" step="0.01" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label>Humedad del grano (%)</label>
+          <input type="number" id="e-humedad" step="0.01" inputmode="decimal">
+        </div>
+      </div>
+      <div class="fila-2">
+        <div class="field">
+          <label>Temperatura ambiente (°C)</label>
+          <input type="number" id="e-temp-ambiente" step="0.1" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label>Temperatura del grano (°C)</label>
+          <input type="number" id="e-temp-grano" step="0.1" inputmode="decimal">
+        </div>
+      </div>
+      <div class="field">
+        <label>Resultado Micro</label>
+        <select id="e-micro">
+          <option value="">— Sin definir todavía —</option>
+          <option value="Apto">Apto</option>
+          <option value="No apto">No apto</option>
+          <option value="Pendiente">Pendiente</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Encargado</label>
+        <input type="text" id="e-encargado" list="lista-encargados" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>Observaciones</label>
+        <textarea id="e-obs"></textarea>
+      </div>
+      <button type="submit" class="submit-btn" id="edit-save-btn">Guardar cambios</button>
+    </form>
+  </div>
+</div>
+
 <script>
   // ---------- almacenamiento local ----------
   // Misma clave que usa la app de Informes: si ya está configurada en este
@@ -269,6 +359,7 @@
   const DATA_CACHE_KEY = 'gp_carga_cache';       // último listado visto (para sugerencias offline)
   const PENDING_KEY    = 'gp_pending_cargas';    // bigbags registrados sin conexión, sin subir todavía
   const PENDING_DEL_KEY = 'gp_pending_borrados'; // IDs para borrar sin conexión, sin borrar todavía
+  const PENDING_EDIT_KEY = 'gp_pending_ediciones'; // ediciones sin conexión, sin subir todavía
 
   function getWebAppUrl(){ return localStorage.getItem(WEBAPP_URL_KEY); }
   function setWebAppUrl(u){ localStorage.setItem(WEBAPP_URL_KEY, u); }
@@ -278,6 +369,9 @@
 
   function getPendientesBorrado(){ try { return JSON.parse(localStorage.getItem(PENDING_DEL_KEY)) || []; } catch(e){ return []; } }
   function setPendientesBorrado(list){ localStorage.setItem(PENDING_DEL_KEY, JSON.stringify(list)); }
+
+  function getPendientesEdicion(){ try { return JSON.parse(localStorage.getItem(PENDING_EDIT_KEY)) || []; } catch(e){ return []; } }
+  function setPendientesEdicion(list){ localStorage.setItem(PENDING_EDIT_KEY, JSON.stringify(list)); }
 
   function esErrorDeRed(ex){
     if(!navigator.onLine) return true;
@@ -308,6 +402,19 @@
     if(!res.ok) throw new Error(`Error ${res.status}`);
     const data = await res.json();
     if(!data.ok) throw new Error(data.error || 'No se pudo guardar el bigbag.');
+    return data;
+  }
+
+  async function editarCargaRemota(id, fields){
+    const url = getWebAppUrl();
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(Object.assign({ action: 'update', id }, fields))
+    });
+    if(!res.ok) throw new Error(`Error ${res.status}`);
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'No se pudo guardar el cambio.');
     return data;
   }
 
@@ -405,8 +512,28 @@
     document.getElementById('c-turno').value = turnoActual_();
   }
 
+  // "9:54" no es válido para <input type="time"> (pide 2 dígitos de hora);
+  // se completa con un cero adelante para que el campo lo muestre bien.
+  function horaZeroPad_(h){
+    const m = String(h||'').trim().match(/^(\d{1,2}):(\d{2})$/);
+    if(!m) return '';
+    return String(m[1]).padStart(2,'0') + ':' + m[2];
+  }
+
   // ---------- sugerencias de Producto/Lote/Encargado y próximo N° de BB ----------
   let ULTIMO_LISTADO = [];
+
+  // Si hay ediciones hechas sin conexión que todavía no se subieron, se
+  // aplican encima de lo que venga del servidor — así, aunque el servidor
+  // todavía tenga el dato viejo, la app no "vuelve atrás" un cambio que el
+  // operario ya hizo.
+  function aplicarEdicionesPendientesLocal_(lista){
+    const ediciones = getPendientesEdicion();
+    if(!ediciones.length) return lista;
+    const porId = {};
+    ediciones.forEach(e => { porId[e.id] = e.fields; });
+    return lista.map(c => porId[c.id] ? Object.assign({}, c, porId[c.id]) : c);
+  }
 
   function maxBB_(lista){
     let max = 0;
@@ -433,7 +560,7 @@
   }
 
   function aplicarSugerenciasListado(lista){
-    ULTIMO_LISTADO = lista;
+    ULTIMO_LISTADO = aplicarEdicionesPendientesLocal_(lista);
     llenarDatalist_('lista-productos', valoresUnicos_(lista, 'producto', 20));
     llenarDatalist_('lista-lotes', valoresUnicos_(lista, 'lote', 20));
     llenarDatalist_('lista-encargados', valoresUnicos_(lista, 'encargado', 20));
@@ -475,7 +602,7 @@
       const dataAttrs = c.__pendiente
         ? `data-localid="${escHtml_(c.__localId)}"`
         : `data-id="${escHtml_(c.id)}"`;
-      return `<div class="reciente-item${pend}">
+      return `<div class="reciente-item${pend}" ${dataAttrs}>
         <div class="reciente-bb">#${bbTxt}</div>
         <div class="reciente-info">
           <div class="reciente-top"><span class="lote">${escHtml_(c.lote)}</span>${tag}</div>
@@ -488,7 +615,12 @@
 
   document.getElementById('recientes-list').addEventListener('click', async function(e){
     const btn = e.target.closest('.reciente-delete');
-    if(!btn) return;
+    if(!btn){
+      // Click en cualquier otra parte de la fila: abre la edición.
+      const item = e.target.closest('.reciente-item');
+      if(item) abrirEdicion(item.dataset.id, item.dataset.localid);
+      return;
+    }
     const id = btn.dataset.id;
     const localId = btn.dataset.localid;
     const resumen = btn.dataset.resumen || 'este bigbag';
@@ -524,6 +656,173 @@
     }
   });
 
+  // ---------- editar un bigbag ya cargado ----------
+  let EDITANDO = null; // { id } o { localId }
+
+  function llenarCampoEdicion_(id, valor){
+    document.getElementById(id).value = (valor == null ? '' : valor);
+  }
+
+  function abrirEdicion(id, localId){
+    let c = null;
+    if(localId){
+      const p = getPendientes().find(p => p.localId === localId);
+      if(!p) return;
+      c = p.fields;
+      EDITANDO = { localId };
+    } else {
+      c = ULTIMO_LISTADO.find(c => c.id === id);
+      if(!c) return;
+      EDITANDO = { id };
+    }
+
+    document.getElementById('edit-error').style.display = 'none';
+    document.getElementById('edit-subtitle').textContent = localId
+      ? 'Todavía sin subir — se corrige en el teléfono.'
+      : `Bigbag #${c.bb != null && c.bb !== '' ? c.bb : '—'} · Lote ${c.lote || '—'}`;
+
+    llenarCampoEdicion_('e-fecha', c.fecha);
+    llenarCampoEdicion_('e-hora', horaZeroPad_(c.hora));
+    llenarCampoEdicion_('e-turno', c.turno || 'DIA');
+    llenarCampoEdicion_('e-producto', c.producto);
+    llenarCampoEdicion_('e-lote', c.lote);
+    llenarCampoEdicion_('e-bb', c.bb);
+    llenarCampoEdicion_('e-pureza', c.pureza);
+    llenarCampoEdicion_('e-humedad', c.humedadGrano);
+    llenarCampoEdicion_('e-temp-ambiente', c.temperaturaAmbiente);
+    llenarCampoEdicion_('e-temp-grano', c.temperaturaGrano);
+    llenarCampoEdicion_('e-micro', c.micro || '');
+    llenarCampoEdicion_('e-encargado', c.encargado);
+    llenarCampoEdicion_('e-obs', c.obs);
+
+    const btn = document.getElementById('edit-save-btn');
+    btn.disabled = false; btn.textContent = 'Guardar cambios';
+    document.getElementById('edit-modal').classList.add('visible');
+  }
+
+  function cerrarModalEdicion(){
+    document.getElementById('edit-modal').classList.remove('visible');
+    EDITANDO = null;
+  }
+
+  function leerCamposEdicion_(){
+    const num = id => {
+      const v = document.getElementById(id).value;
+      return v === '' ? '' : Number(v);
+    };
+    return {
+      fecha: document.getElementById('e-fecha').value,
+      hora: document.getElementById('e-hora').value,
+      turno: document.getElementById('e-turno').value,
+      producto: document.getElementById('e-producto').value.trim(),
+      lote: document.getElementById('e-lote').value.trim(),
+      bb: num('e-bb'),
+      pureza: num('e-pureza'),
+      temperaturaAmbiente: num('e-temp-ambiente'),
+      temperaturaGrano: num('e-temp-grano'),
+      humedadGrano: num('e-humedad'),
+      micro: document.getElementById('e-micro').value,
+      encargado: document.getElementById('e-encargado').value.trim(),
+      obs: document.getElementById('e-obs').value.trim()
+    };
+  }
+
+  document.getElementById('edit-form').addEventListener('submit', async function(e){
+    e.preventDefault();
+    if(!EDITANDO) return;
+    const err = document.getElementById('edit-error');
+    err.style.display = 'none';
+    const fields = leerCamposEdicion_();
+    if(!fields.lote){
+      err.textContent = 'Falta el Lote.';
+      err.style.display = 'block';
+      return;
+    }
+
+    if(EDITANDO.localId){
+      // Todavía no se subió: se corrige directo en la cola local, sin red.
+      const pendientes = getPendientes();
+      const item = pendientes.find(p => p.localId === EDITANDO.localId);
+      if(item) item.fields = fields;
+      setPendientes(pendientes);
+      cerrarModalEdicion();
+      renderRecientes();
+      sugerirProximoBB();
+      showToast('Cambios guardados en la cola');
+      return;
+    }
+
+    const btn = document.getElementById('edit-save-btn');
+    btn.disabled = true; btn.textContent = 'Guardando...';
+    const id = EDITANDO.id;
+    try{
+      await editarCargaRemota(id, fields);
+      ULTIMO_LISTADO = ULTIMO_LISTADO.map(c => c.id === id ? Object.assign({}, c, fields) : c);
+      cerrarModalEdicion();
+      renderRecientes();
+      sugerirProximoBB();
+      showToast('Bigbag actualizado');
+    }catch(ex){
+      if(esErrorDeRed(ex)){
+        encolarEdicion(id, fields);
+        ULTIMO_LISTADO = ULTIMO_LISTADO.map(c => c.id === id ? Object.assign({}, c, fields) : c);
+        cerrarModalEdicion();
+        renderRecientes();
+        sugerirProximoBB();
+        actualizarBannerConexion();
+        showToast('Sin conexión: los cambios se suben solos apenas vuelva internet', false, true);
+      } else {
+        btn.disabled = false; btn.textContent = 'Guardar cambios';
+        err.textContent = 'No se pudo guardar: ' + ex.message;
+        err.style.display = 'block';
+      }
+    }
+  });
+
+  // ---------- cola offline de ediciones: tampoco se pierde una corrección ----------
+  function encolarEdicion(id, fields){
+    // Si ya había una edición pendiente para el mismo bigbag, se reemplaza
+    // por la más nueva (no tiene sentido subir las dos).
+    const pendientes = getPendientesEdicion().filter(p => p.id !== id);
+    pendientes.push({ id, fields, creadoEn: new Date().toISOString() });
+    setPendientesEdicion(pendientes);
+  }
+
+  let flushEdicionesEnCurso = false;
+  async function sincronizarEdiciones(silencioso){
+    if(flushEdicionesEnCurso) return;
+    const pendientes = getPendientesEdicion();
+    if(!pendientes.length) return;
+    flushEdicionesEnCurso = true;
+
+    let subieron = 0;
+    let cortarPorRed = false;
+    const restantes = [];
+
+    for(const item of pendientes){
+      if(cortarPorRed){ restantes.push(item); continue; }
+      try{
+        await editarCargaRemota(item.id, item.fields);
+        subieron++;
+      }catch(ex){
+        if(esErrorDeRed(ex)){
+          cortarPorRed = true;
+          restantes.push(item);
+        }
+        // Error real (ej. ya no existe): se descarta, reintentar por
+        // siempre no tendría sentido.
+      }
+    }
+
+    setPendientesEdicion(restantes);
+    flushEdicionesEnCurso = false;
+    if(subieron > 0){
+      actualizarBannerConexion();
+      renderRecientes();
+      if(!silencioso) showToast(subieron === 1 ? 'Se subió 1 edición pendiente' : `Se subieron ${subieron} ediciones pendientes`);
+    }
+  }
+
   function fechaVisualCorta_(iso){
     const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
     return m ? `${m[3]}/${m[2]}` : iso;
@@ -553,6 +852,7 @@
       aplicarSugerenciasListado(lista);
       await sincronizarPendientes(true);
       await sincronizarBorrados(true);
+      await sincronizarEdiciones(true);
     }catch(ex){
       const cacheRaw = localStorage.getItem(DATA_CACHE_KEY);
       if(cacheRaw){
@@ -732,7 +1032,8 @@
     const banner = document.getElementById('conn-banner');
     const pendientes = getPendientes();
     const borrados = getPendientesBorrado();
-    const totalPend = pendientes.length + borrados.length;
+    const ediciones = getPendientesEdicion();
+    const totalPend = pendientes.length + borrados.length + ediciones.length;
     if(!navigator.onLine){
       banner.className = 'conn-banner offline';
       banner.innerHTML = `<span class="dot"></span> Sin conexión${totalPend ? ' · ' + totalPend + ' cambio(s) sin subir todavía' : ' — los bigbags que cargues se guardan en el teléfono'}`;
@@ -746,10 +1047,10 @@
     }
   }
 
-  window.addEventListener('online', ()=>{ actualizarBannerConexion(); sincronizarPendientes().then(()=>sincronizarBorrados()).then(cargarSugerencias); });
+  window.addEventListener('online', ()=>{ actualizarBannerConexion(); sincronizarPendientes().then(()=>sincronizarBorrados()).then(()=>sincronizarEdiciones()).then(cargarSugerencias); });
   window.addEventListener('offline', actualizarBannerConexion);
   setInterval(()=>{
-    if(navigator.onLine){ sincronizarPendientes(true).then(()=>sincronizarBorrados(true)); }
+    if(navigator.onLine){ sincronizarPendientes(true).then(()=>sincronizarBorrados(true)).then(()=>sincronizarEdiciones(true)); }
     actualizarBannerConexion();
   }, 30000);
 
