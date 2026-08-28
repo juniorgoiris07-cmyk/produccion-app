@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Carga de Producción</title>
+
+<!-- ===== PWA: instalación en el celular ===== -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#161513">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Carga">
+
+<style>
+  :root{
+    color-scheme: light;
+    --surface-1:      #fcfcfb;
+    --surface-2:      #f9f9f7;
+    --card:           #ffffff;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --gridline:       #e1e0d9;
+    --border:         rgba(11,11,11,0.10);
+    --series-1:       #8A6D00;
+    --series-1-ink:   #5C4400;
+    --good:           #0ca30c;
+    --critical:       #d03b3b;
+    --good-bg:        #e6f6e6;
+    --critical-bg:    #fbe9e9;
+    --warning-bg:     #fff6e0;
+    --series-1-rgb:   138,109,0;
+    --gold-bg:        #FBF0CE;
+    --ink-1:          #161513;
+    --ink-2:          #000000;
+    --shadow-sm:      0 1px 2px rgba(20,20,15,0.05), 0 1px 4px rgba(20,20,15,0.04);
+    --shadow-md:      0 8px 24px rgba(20,20,15,0.08), 0 2px 6px rgba(20,20,15,0.05);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--surface-2);color:var(--text-primary);}
+  .app-shell{max-width:560px;margin:0 auto;min-height:100vh;background:var(--surface-1);animation:appIn .4s ease;}
+  @keyframes appIn{from{opacity:0;}to{opacity:1;}}
+  @media(min-width:600px){
+    body{padding:28px 16px;}
+    .app-shell{min-height:0;border-radius:16px;box-shadow:var(--shadow-md);border:1px solid var(--gridline);overflow:hidden;}
+  }
+  header.appbar{position:relative;overflow:hidden;padding:22px 20px 20px;color:#fff;background:linear-gradient(135deg,var(--ink-1) 0%,var(--ink-2) 100%);border-bottom:2px solid var(--series-1);}
+  header.appbar::before{content:'';position:absolute;top:-46px;right:-36px;width:170px;height:170px;background:radial-gradient(circle,rgba(255,222,90,0.16) 0%,rgba(255,222,90,0) 70%);pointer-events:none;}
+  header.appbar::after{content:'';position:absolute;bottom:-64px;left:-28px;width:150px;height:150px;background:radial-gradient(circle,rgba(255,222,90,0.10) 0%,rgba(255,222,90,0) 70%);pointer-events:none;}
+  .appbar-top{position:relative;z-index:1;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
+  .appbar-title{display:flex;align-items:center;gap:12px;}
+  .appbar-icon{flex-shrink:0;border-radius:8px;background:#fff;display:flex;align-items:center;justify-content:center;padding:6px 9px;box-shadow:var(--shadow-sm);}
+  .appbar-icon img{display:block;height:26px;width:auto;}
+  header.appbar h1{font-size:18px;margin:0;font-weight:700;letter-spacing:-.01em;color:#fff;}
+  header.appbar p{margin:4px 0 0;color:rgba(255,255,255,0.78);font-size:12.5px;}
+  .settings-btn{width:44px;height:44px;border-radius:50%;border:none;background:rgba(255,255,255,0.16);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background-color .2s ease;}
+  .settings-btn:hover{background:rgba(255,255,255,0.28);}
+  .settings-btn svg{transition:transform .4s ease;}
+  .settings-btn:active svg{transform:rotate(70deg);}
+  section{padding:18px 16px 40px;}
+  .card{background:var(--card);border:1px solid var(--gridline);border-radius:14px;padding:18px;box-shadow:var(--shadow-sm);}
+  .field{margin-bottom:14px;}
+  .field label{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;}
+  .field label .hint{font-size:10.5px;font-weight:700;color:var(--series-1-ink);background:var(--gold-bg);padding:1px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:.03em;}
+  input,select,textarea{width:100%;padding:11px 12px;border:1px solid var(--border);border-radius:9px;background:var(--surface-1);color:var(--text-primary);font-size:15px;font-family:inherit;transition:border-color .15s ease, box-shadow .15s ease;}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--series-1);box-shadow:0 0 0 3px rgba(var(--series-1-rgb),0.15);}
+  textarea{resize:vertical;min-height:56px;}
+  .submit-btn{width:100%;padding:14px;border:none;border-radius:10px;background:var(--series-1);color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-top:6px;box-shadow:var(--shadow-sm);transition:filter .15s ease, transform .05s ease;}
+  .submit-btn:hover:not(:disabled){filter:brightness(0.94);}
+  .submit-btn:active:not(:disabled){filter:brightness(0.88);transform:translateY(1px);}
+  .submit-btn:disabled{opacity:.6;cursor:default;}
+  .error-msg{background:var(--critical-bg);color:var(--critical);border:1px solid var(--critical);border-radius:8px;padding:10px 12px;font-size:13px;margin-bottom:14px;display:none;}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--good);color:#fff;padding:12px 20px;border-radius:10px;font-size:14px;font-weight:600;opacity:0;transition:all .3s cubic-bezier(.34,1.56,.64,1);pointer-events:none;z-index:50;box-shadow:0 6px 20px rgba(0,0,0,0.2);max-width:90vw;text-align:center;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  .toast.error{background:var(--critical);}
+  .toast.warn{background:#8a6300;}
+  .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+  .login-card{width:100%;max-width:360px;}
+  .login-logo{display:block;height:34px;width:auto;margin:0 0 18px;}
+  .login-card h1{font-size:20px;margin:0 0 4px;letter-spacing:-.01em;}
+  .login-card p{margin:0 0 20px;color:var(--text-secondary);font-size:13px;}
+  .setup-note{font-size:12px;color:var(--text-muted);line-height:1.5;background:var(--surface-2);border:1px solid var(--gridline);border-radius:8px;padding:10px 12px;margin-bottom:16px;}
+  .hidden{display:none !important;}
+
+  .conn-banner{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:9px;font-size:12.5px;font-weight:600;margin-bottom:14px;animation:slideDown .25s ease;}
+  .conn-banner.offline{background:var(--warning-bg);color:#8a6300;}
+  .conn-banner.pending{background:var(--gold-bg);color:var(--series-1-ink);}
+  .conn-banner .dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0;}
+  @keyframes slideDown{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:translateY(0);}}
+
+  .grupo-titulo{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin:20px 0 10px;}
+  .grupo-titulo:first-child{margin-top:0;}
+  .fila-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .fila-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+  @media(max-width:360px){.fila-3{grid-template-columns:1fr 1fr;}}
+
+  .footer-link{display:block;text-align:center;font-size:12.5px;color:var(--text-muted);text-decoration:none;padding:14px 0 0;}
+  .footer-link:hover{color:var(--series-1-ink);}
+</style>
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- ============ SETUP ============ -->
+  <div id="setup-screen" class="login-wrap hidden">
+    <div class="login-card card">
+      <img src="icons/logo-header.png" alt="Progresso NH S.A." class="login-logo">
+      <h1>Configuración inicial</h1>
+      <p>Esto se hace una sola vez en este celular/PC.</p>
+      <div class="setup-note">
+        Necesitás la URL de la aplicación web de Google Apps Script conectada
+        a la planilla de Google Sheets. La obtenés desde la hoja:
+        <b>Extensiones → Apps Script → Implementar → Nueva implementación</b>
+        (tipo "Aplicación web", acceso "Cualquier usuario"). Pegá acá la URL
+        que termina en <b>/exec</b>. Si ya configuraste la app de Informes en
+        este mismo teléfono, se usa la misma URL automáticamente.
+      </div>
+      <div class="error-msg" id="setup-error"></div>
+      <form id="setup-form">
+        <div class="field">
+          <label>URL de la app web (Google Apps Script)</label>
+          <input type="url" id="s-url" placeholder="https://script.google.com/macros/s/.../exec" required>
+        </div>
+        <button type="submit" class="submit-btn" id="setup-btn">Guardar y continuar</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============ APP ============ -->
+  <div id="app-screen" class="hidden">
+    <header class="appbar">
+      <div class="appbar-top">
+        <div class="appbar-title">
+          <span class="appbar-icon">
+            <img src="icons/logo-header.png" alt="Progresso NH S.A.">
+          </span>
+          <div>
+            <h1>Carga de Producción</h1>
+            <p>Registrá cada bigbag apenas sale de línea</p>
+          </div>
+        </div>
+        <button class="settings-btn" onclick="resetWebAppUrl()" title="Configuración" aria-label="Configuración">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 15a3 3 0 100-6 3 3 0 000 6z" stroke="white" stroke-width="2"/>
+            <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z" stroke="white" stroke-width="1.6"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <section>
+      <div id="conn-banner" class="conn-banner hidden"></div>
+      <div class="error-msg" id="form-error"></div>
+
+      <div class="card">
+        <form id="carga-form">
+
+          <div class="grupo-titulo">Identificación</div>
+          <div class="fila-2">
+            <div class="field">
+              <label>Fecha <span class="hint">Sugerida</span></label>
+              <input type="date" id="c-fecha" required>
+            </div>
+            <div class="field">
+              <label>Hora <span class="hint">Sugerida</span></label>
+              <input type="time" id="c-hora" required>
+            </div>
+          </div>
+          <div class="field">
+            <label>Turno <span class="hint">Sugerido</span></label>
+            <select id="c-turno" required>
+              <option value="DIA">DIA (6:00 a 18:00)</option>
+              <option value="NOCHE">NOCHE (18:00 a 6:00)</option>
+            </select>
+          </div>
+          <div class="fila-2">
+            <div class="field">
+              <label>Producto</label>
+              <input type="text" id="c-producto" list="lista-productos" autocomplete="off" required>
+              <datalist id="lista-productos"></datalist>
+            </div>
+            <div class="field">
+              <label>Lote</label>
+              <input type="text" id="c-lote" list="lista-lotes" autocomplete="off" required>
+              <datalist id="lista-lotes"></datalist>
+            </div>
+          </div>
+          <div class="field">
+            <label>N° de BigBag <span class="hint">Sugerido</span></label>
+            <input type="number" id="c-bb" min="1" step="1" required>
+          </div>
+
+          <div class="grupo-titulo">Mediciones</div>
+          <div class="fila-2">
+            <div class="field">
+              <label>Pureza (%)</label>
+              <input type="number" id="c-pureza" step="0.01" inputmode="decimal">
+            </div>
+            <div class="field">
+              <label>Humedad del grano (%)</label>
+              <input type="number" id="c-humedad" step="0.01" inputmode="decimal">
+            </div>
+          </div>
+          <div class="fila-2">
+            <div class="field">
+              <label>Temperatura ambiente (°C)</label>
+              <input type="number" id="c-temp-ambiente" step="0.1" inputmode="decimal">
+            </div>
+            <div class="field">
+              <label>Temperatura del grano (°C)</label>
+              <input type="number" id="c-temp-grano" step="0.1" inputmode="decimal">
+            </div>
+          </div>
+
+          <div class="grupo-titulo">Otros datos</div>
+          <div class="field">
+            <label>Resultado Micro</label>
+            <select id="c-micro">
+              <option value="">— Sin definir todavía —</option>
+              <option value="Apto">Apto</option>
+              <option value="No apto">No apto</option>
+              <option value="Pendiente">Pendiente</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Encargado</label>
+            <input type="text" id="c-encargado" list="lista-encargados" autocomplete="off">
+            <datalist id="lista-encargados"></datalist>
+          </div>
+          <div class="field">
+            <label>Observaciones</label>
+            <textarea id="c-obs"></textarea>
+          </div>
+
+          <button type="submit" class="submit-btn" id="submit-btn">Registrar bigbag</button>
+        </form>
+      </div>
+
+      <a class="footer-link" href="../informes/">Ver informes de producción →</a>
+    </section>
+  </div>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+  // ---------- almacenamiento local ----------
+  // Misma clave que usa la app de Informes: si ya está configurada en este
+  // teléfono, esta app la hereda sola sin volver a pedirla.
+  const WEBAPP_URL_KEY = 'gs_webapp_url';
+  const DATA_CACHE_KEY = 'gp_carga_cache';       // último listado visto (para sugerencias offline)
+  const PENDING_KEY    = 'gp_pending_cargas';    // bigbags registrados sin conexión, sin subir todavía
+
+  function getWebAppUrl(){ return localStorage.getItem(WEBAPP_URL_KEY); }
+  function setWebAppUrl(u){ localStorage.setItem(WEBAPP_URL_KEY, u); }
+
+  function getPendientes(){ try { return JSON.parse(localStorage.getItem(PENDING_KEY)) || []; } catch(e){ return []; } }
+  function setPendientes(list){ localStorage.setItem(PENDING_KEY, JSON.stringify(list)); }
+
+  function esErrorDeRed(ex){
+    if(!navigator.onLine) return true;
+    if(ex instanceof TypeError) return true;
+    if(ex && /failed to fetch|network|load failed/i.test(ex.message||'')) return true;
+    return false;
+  }
+
+  // ---------- llamadas a la app web de Apps Script ----------
+  async function obtenerCargas(){
+    const url = getWebAppUrl();
+    const res = await fetch(url, { method: 'GET' });
+    if(!res.ok) throw new Error(`Error ${res.status}`);
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'No se pudieron obtener los datos.');
+    return data.cargas || [];
+  }
+
+  async function crearCargaRemota(fields){
+    const url = getWebAppUrl();
+    // Content-Type: text/plain evita que el navegador dispare un preflight
+    // CORS que Apps Script no siempre responde bien.
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(Object.assign({ action: 'create' }, fields))
+    });
+    if(!res.ok) throw new Error(`Error ${res.status}`);
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'No se pudo guardar el bigbag.');
+    return data;
+  }
+
+  // ---------- flujo de pantallas ----------
+  function mostrarPantalla(id){
+    ['setup-screen','app-screen'].forEach(x=>{
+      document.getElementById(x).classList.toggle('hidden', x!==id);
+    });
+  }
+
+  function iniciar(){
+    if(!getWebAppUrl()){ mostrarPantalla('setup-screen'); return; }
+    mostrarPantalla('app-screen');
+    sugerirCamposIniciales();
+    cargarSugerencias();
+    actualizarBannerConexion();
+  }
+
+  function resetWebAppUrl(){
+    mostrarPantalla('setup-screen');
+    document.getElementById('setup-error').style.display = 'none';
+    document.getElementById('s-url').value = getWebAppUrl() || '';
+    document.getElementById('setup-btn').disabled = false;
+    document.getElementById('setup-btn').textContent = 'Guardar y continuar';
+  }
+
+  document.getElementById('setup-form').addEventListener('submit', async function(e){
+    e.preventDefault();
+    const err = document.getElementById('setup-error');
+    err.style.display = 'none';
+    const btn = document.getElementById('setup-btn');
+    const url = document.getElementById('s-url').value.trim();
+    if(!url) return;
+    btn.disabled = true; btn.textContent = 'Verificando...';
+    try{
+      const res = await fetch(url, { method: 'GET' });
+      if(!res.ok) throw new Error(`Error ${res.status}`);
+      const data = await res.json();
+      if(!data.ok) throw new Error(data.error || 'La URL respondió pero con un error.');
+      setWebAppUrl(url);
+      mostrarPantalla('app-screen');
+      sugerirCamposIniciales();
+      cargarSugerencias();
+      actualizarBannerConexion();
+    }catch(ex){
+      btn.disabled = false; btn.textContent = 'Guardar y continuar';
+      err.textContent = 'No se pudo conectar con esa URL: ' + ex.message + '. Revisá que sea la URL de "Implementación" (termina en /exec) y que el acceso esté configurado como "Cualquier usuario".';
+      err.style.display = 'block';
+    }
+  });
+
+  // ---------- fecha/hora/turno sugeridos ----------
+  function isoLocal_(d){
+    const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
+  }
+  function horaAhora_(){
+    const d = new Date();
+    return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  }
+  function turnoActual_(){
+    const h = new Date().getHours();
+    return (h>=6 && h<18) ? 'DIA' : 'NOCHE';
+  }
+  // Si son las 2 de la mañana, la NOCHE que está en curso arrancó AYER a la
+  // tarde — por eso la Fecha sugerida tiene que ser la de ayer, no la de
+  // hoy, igual que hace la app de Informes al agrupar los turnos.
+  function fechaSugerida_(){
+    const ahora = new Date();
+    if(ahora.getHours() < 6){
+      const ayer = new Date(ahora);
+      ayer.setDate(ayer.getDate()-1);
+      return isoLocal_(ayer);
+    }
+    return isoLocal_(ahora);
+  }
+
+  function sugerirCamposIniciales(){
+    document.getElementById('c-fecha').value = fechaSugerida_();
+    document.getElementById('c-hora').value = horaAhora_();
+    document.getElementById('c-turno').value = turnoActual_();
+  }
+
+  // ---------- sugerencias de Producto/Lote/Encargado y próximo N° de BB ----------
+  let ULTIMO_LISTADO = [];
+
+  function maxBB_(lista){
+    let max = 0;
+    lista.forEach(c=>{
+      const n = Number(c.bb);
+      if(!isNaN(n) && n > max) max = n;
+    });
+    return max;
+  }
+
+  function valoresUnicos_(lista, campo, limite){
+    const vistos = new Set();
+    const out = [];
+    for(let i = lista.length - 1; i >= 0 && out.length < limite; i--){
+      const v = String(lista[i][campo] || '').trim();
+      if(v && !vistos.has(v)){ vistos.add(v); out.push(v); }
+    }
+    return out;
+  }
+
+  function llenarDatalist_(id, valores){
+    const dl = document.getElementById(id);
+    dl.innerHTML = valores.map(v => `<option value="${v.replace(/"/g,'&quot;')}">`).join('');
+  }
+
+  function aplicarSugerenciasListado(lista){
+    ULTIMO_LISTADO = lista;
+    llenarDatalist_('lista-productos', valoresUnicos_(lista, 'producto', 20));
+    llenarDatalist_('lista-lotes', valoresUnicos_(lista, 'lote', 20));
+    llenarDatalist_('lista-encargados', valoresUnicos_(lista, 'encargado', 20));
+    sugerirProximoBB();
+  }
+
+  function sugerirProximoBB(){
+    const bbInput = document.getElementById('c-bb');
+    // No pisar un número que el operario ya haya tocado a mano.
+    if(bbInput.dataset.tocado === '1') return;
+    const maxRemoto = maxBB_(ULTIMO_LISTADO);
+    const maxPendiente = maxBB_(getPendientes().map(p => p.fields));
+    bbInput.value = Math.max(maxRemoto, maxPendiente) + 1;
+  }
+
+  document.getElementById('c-bb').addEventListener('input', function(){
+    this.dataset.tocado = '1';
+  });
+
+  async function cargarSugerencias(){
+    try{
+      const lista = await obtenerCargas();
+      localStorage.setItem(DATA_CACHE_KEY, JSON.stringify({ cargas: lista, ts: new Date().toISOString() }));
+      aplicarSugerenciasListado(lista);
+      await sincronizarPendientes(true);
+    }catch(ex){
+      const cacheRaw = localStorage.getItem(DATA_CACHE_KEY);
+      if(cacheRaw){
+        try{ aplicarSugerenciasListado(JSON.parse(cacheRaw).cargas || []); }catch(e2){}
+      }
+    }
+  }
+
+  // ---------- envío del formulario ----------
+  function leerCampos_(){
+    const num = id => {
+      const v = document.getElementById(id).value;
+      return v === '' ? '' : Number(v);
+    };
+    return {
+      fecha: document.getElementById('c-fecha').value,
+      hora: document.getElementById('c-hora').value,
+      turno: document.getElementById('c-turno').value,
+      producto: document.getElementById('c-producto').value.trim(),
+      lote: document.getElementById('c-lote').value.trim(),
+      bb: num('c-bb'),
+      pureza: num('c-pureza'),
+      temperaturaAmbiente: num('c-temp-ambiente'),
+      temperaturaGrano: num('c-temp-grano'),
+      humedadGrano: num('c-humedad'),
+      micro: document.getElementById('c-micro').value,
+      encargado: document.getElementById('c-encargado').value.trim(),
+      obs: document.getElementById('c-obs').value.trim()
+    };
+  }
+
+  function limpiarParaSiguienteBigbag_(){
+    // Se mantienen Producto, Lote y Encargado (lo normal es cargar varios
+    // bigbags seguidos del mismo lote/turno) y se refresca todo lo que
+    // cambia bigbag a bigbag: Fecha/Hora/Turno (nuevo momento real), el N°
+    // de BB (siguiente) y las mediciones/observaciones (son de cada
+    // bigbag, no se arrastran).
+    sugerirCamposIniciales();
+    document.getElementById('c-bb').dataset.tocado = '0';
+    sugerirProximoBB();
+    ['c-pureza','c-temp-ambiente','c-temp-grano','c-humedad','c-obs'].forEach(id=>{
+      document.getElementById(id).value = '';
+    });
+    document.getElementById('c-micro').value = '';
+    document.getElementById('c-producto').focus();
+  }
+
+  document.getElementById('carga-form').addEventListener('submit', async function(e){
+    e.preventDefault();
+    const err = document.getElementById('form-error');
+    err.style.display = 'none';
+    const btn = document.getElementById('submit-btn');
+    const fields = leerCampos_();
+    if(!fields.lote){
+      err.textContent = 'Falta el Lote.';
+      err.style.display = 'block';
+      return;
+    }
+    btn.disabled = true; btn.textContent = 'Guardando...';
+    try{
+      await crearCargaRemota(fields);
+      ULTIMO_LISTADO.push(fields);
+      showToast('Bigbag registrado');
+      limpiarParaSiguienteBigbag_();
+    }catch(ex){
+      if(esErrorDeRed(ex)){
+        encolarCarga(fields);
+        showToast('Sin conexión: el bigbag quedó guardado en el teléfono y se sube solo cuando vuelva internet', false, true);
+        actualizarBannerConexion();
+        limpiarParaSiguienteBigbag_();
+      } else {
+        err.textContent = 'No se pudo guardar: ' + ex.message;
+        err.style.display = 'block';
+      }
+    }finally{
+      btn.disabled = false; btn.textContent = 'Registrar bigbag';
+    }
+  });
+
+  // ---------- cola offline: ningún bigbag cargado se pierde ----------
+  function encolarCarga(fields){
+    const pendientes = getPendientes();
+    pendientes.push({ localId: 'p' + Date.now() + Math.random().toString(36).slice(2), fields, estado:'pendiente', errorMsg:'', creadoEn: new Date().toISOString() });
+    setPendientes(pendientes);
+  }
+
+  let flushEnCurso = false;
+  async function sincronizarPendientes(silencioso){
+    if(flushEnCurso) return;
+    const pendientes = getPendientes();
+    if(!pendientes.length) return;
+    flushEnCurso = true;
+
+    let subieron = 0;
+    let cortarPorRed = false;
+    const restantes = [];
+
+    for(const item of pendientes){
+      if(cortarPorRed){ restantes.push(item); continue; }
+      try{
+        await crearCargaRemota(item.fields);
+        subieron++;
+      }catch(ex){
+        if(esErrorDeRed(ex)){
+          cortarPorRed = true;
+          restantes.push(item);
+        } else {
+          item.estado = 'error';
+          item.errorMsg = ex.message || 'Error desconocido';
+          restantes.push(item);
+        }
+      }
+    }
+
+    setPendientes(restantes);
+    flushEnCurso = false;
+    if(subieron > 0){
+      actualizarBannerConexion();
+      if(!silencioso) showToast(subieron === 1 ? 'Se subió 1 bigbag pendiente' : `Se subieron ${subieron} bigbags pendientes`);
+    }
+  }
+
+  function actualizarBannerConexion(){
+    const banner = document.getElementById('conn-banner');
+    const pendientes = getPendientes();
+    if(!navigator.onLine){
+      banner.className = 'conn-banner offline';
+      banner.innerHTML = `<span class="dot"></span> Sin conexión${pendientes.length ? ' · ' + pendientes.length + ' bigbag(s) guardado(s) en el teléfono, pendiente(s) de subir' : ' — los bigbags que cargues se guardan en el teléfono'}`;
+      banner.classList.remove('hidden');
+    } else if(pendientes.length){
+      banner.className = 'conn-banner pending';
+      banner.innerHTML = `<span class="dot"></span> Subiendo ${pendientes.length} bigbag(s) pendiente(s)...`;
+      banner.classList.remove('hidden');
+    } else {
+      banner.classList.add('hidden');
+    }
+  }
+
+  window.addEventListener('online', ()=>{ actualizarBannerConexion(); sincronizarPendientes().then(cargarSugerencias); });
+  window.addEventListener('offline', actualizarBannerConexion);
+  setInterval(()=>{ if(navigator.onLine){ sincronizarPendientes(true); } actualizarBannerConexion(); }, 30000);
+
+  function showToast(msg, isError, isWarn){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (isError ? ' error' : (isWarn ? ' warn' : ''));
+    setTimeout(()=>t.classList.remove('show'), isWarn ? 4000 : 2500);
+  }
+
+  // ---------- service worker: permite abrir la app sin conexión ----------
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', ()=>{
+      navigator.serviceWorker.register('./sw.js').then((reg)=>{
+        reg.update().catch(()=>{});
+      }).catch(()=>{ /* si falla, la app sigue funcionando igual */ });
+    });
+  }
+
+  iniciar();
+</script>
+</body>
+</html>
