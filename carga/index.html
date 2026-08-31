@@ -527,10 +527,13 @@
   // darse cuenta, se borraría la Fecha del bigbag. Si no se puede
   // interpretar el formato, se deja vacío (nunca se inventa una fecha).
   function fechaAISO_(f){
-    const s = String(f||'').trim();
+    // Se sacan TODOS los espacios (no solo los pegados a "-"/"/") para
+    // bancarse un espacio de más metido en medio de un número por error,
+    // como "28 -08 -2 6" (año "2 6" en vez de "26").
+    const s = String(f||'').trim().replace(/\s+/g, '');
     if(!s) return '';
     if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-    const m = s.match(/^(\d{1,2})\s*[-\/]\s*(\d{1,2})\s*[-\/]\s*(\d{2,4})$/);
+    const m = s.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{2,4})$/);
     if(m){
       const dd = m[1].padStart(2,'0');
       const mm = m[2].padStart(2,'0');
