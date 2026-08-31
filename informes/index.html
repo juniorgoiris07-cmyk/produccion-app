@@ -637,7 +637,16 @@
           // parecería, por error, una continuación de la anterior.
           const gapInicio = diffDiasISO_(actual.fechaInicio, fISO);
           if(esNoche){
-            sigue = horaMin < 6*60 ? (gapInicio === 0 || gapInicio === 1) : gapInicio === 0;
+            // El turno noche arranca a partir de las 18:00 — así que un
+            // bigbag cargado con Hora ANTES de esa franja, al día
+            // siguiente del inicio de la tanda, no puede ser el arranque
+            // de una noche nueva (nunca empieza a esa hora). Sigue siendo
+            // parte de la misma noche, ya sea que se cargó recién pasada
+            // la medianoche o con demora (por ejemplo, registrado recién
+            // al otro día al mediodía). Desde las 18:00 en adelante sí
+            // puede ser el arranque de la noche siguiente, así que ahí se
+            // corta la tanda.
+            sigue = gapInicio === 0 || (gapInicio === 1 && horaMin < 18*60);
           } else {
             sigue = gapInicio === 0; // turno día: nunca cruza medianoche
           }
