@@ -512,9 +512,12 @@
   // función entiende ambos y devuelve siempre {anio,mes,dia}, para no
   // depender de a qué formato haya salido la celda.
   function fechaPartes_(f){
-    // Se saca cualquier espacio pegado a los separadores para bancarse
-    // variantes como "14 - 08 - 26" (con espacios) además de "14-08-26".
-    const s = String(f||'').trim().replace(/\s*([/\-])\s*/g, '$1');
+    // Se sacan TODOS los espacios (no solo los pegados a "/" o "-") para
+    // bancarse variantes como "14 - 08 - 26" o incluso un espacio metido
+    // por error en medio de un número, como "28 -08 -2 6" (año "2 6" en
+    // vez de "26") — un espacio de más ahí no debería tirar abajo el
+    // agrupamiento por turno.
+    const s = String(f||'').trim().replace(/\s+/g, '');
     let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/); // AAAA-MM-DD
     if(m) return { anio:m[1], mes:m[2].padStart(2,'0'), dia:m[3].padStart(2,'0') };
     m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/); // DD/MM/AAAA
