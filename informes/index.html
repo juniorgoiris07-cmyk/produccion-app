@@ -113,7 +113,14 @@
   .bloques-list .lote-card .lote-eyebrow,
   .bloques-list .lote-card .lote-id,
   .bloques-list .lote-card .lote-producto{margin-bottom:0;}
-  .bloques-list .lote-card .lote-head{flex:0 0 auto;min-width:110px;}
+  /* flex:0 0 auto + sin min-width:0 hacía que, si el bloque mezclaba
+     varios lotes (texto largo tipo "Lote X, Y, Z"), la tarjeta lo
+     dibujara todo en una sola línea sin achicarse ni ajustarse al ancho
+     de la tarjeta — se salía por afuera del borde/pantalla en vez de
+     bajar de línea. Ocupando el 100% del ancho de la fila (con
+     min-width:0, para que sí pueda encogerse) el texto larga vuelve a
+     ajustarse (wrap) normal, adentro de la tarjeta. */
+  .bloques-list .lote-card .lote-head{flex:1 1 100%;min-width:0;}
   .bloques-list .lote-card .lote-stat{flex:1 1 200px;margin-bottom:0;}
   .bloques-list .lote-card .badge{flex:0 0 auto;}
   @keyframes cardIn{from{opacity:0;transform:translateY(10px) scale(.97);}to{opacity:1;transform:translateY(0) scale(1);}}
@@ -124,7 +131,7 @@
   @keyframes shimmer{0%{background-position:100% 50%;}100%{background-position:0% 50%;}}
   .lote-card .lote-eyebrow{font-size:9.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-muted);margin-bottom:1px;}
   .lote-card .lote-id{font-weight:800;font-size:17px;margin-bottom:2px;letter-spacing:-.01em;}
-  .lote-card .lote-producto{font-size:11.5px;color:var(--text-secondary);margin-bottom:10px;}
+  .lote-card .lote-producto{font-size:11.5px;color:var(--text-secondary);margin-bottom:10px;overflow-wrap:break-word;word-break:break-word;}
   .lote-card .lote-stat{background:var(--surface-2);border:1px solid var(--gridline);border-radius:8px;padding:7px 9px;margin-bottom:8px;}
   .lote-card .lote-ton{display:block;font-size:15px;font-weight:700;color:var(--text-primary);margin-bottom:3px;}
   .lote-card .lote-fecha{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-muted);font-weight:600;}
