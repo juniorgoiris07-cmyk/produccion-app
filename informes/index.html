@@ -194,10 +194,18 @@
   .turno-summary-total{margin-top:10px;padding-top:10px;border-top:1px dashed var(--gridline);font-size:11.5px;color:var(--text-muted);text-align:center;}
 
   .produccion-summary{background:var(--card);border:1px solid var(--gridline);border-radius:12px;padding:14px;margin-bottom:14px;box-shadow:var(--shadow-sm);animation:cardIn .35s ease both;}
-  .produccion-mes-selector{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
-  .mes-chip{appearance:none;font-family:inherit;padding:7px 13px;border:1px solid var(--gridline);border-radius:20px;background:var(--surface-2);color:var(--text-secondary);font-size:11.5px;font-weight:700;cursor:pointer;text-align:center;text-transform:capitalize;transition:background-color .15s ease,border-color .15s ease,color .15s ease;}
+  .produccion-mes-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
+  .produccion-mes-hint{font-size:11px;color:var(--text-muted);font-weight:600;line-height:1.4;}
+  .produccion-mes-acciones{display:flex;gap:12px;flex-shrink:0;}
+  .mes-accion-btn{appearance:none;font-family:inherit;background:none;border:none;padding:0;margin:0;font-size:11px;font-weight:800;color:var(--series-1);cursor:pointer;text-decoration:underline;text-underline-offset:2px;white-space:nowrap;}
+  .mes-accion-btn:hover{opacity:.75;}
+  .produccion-mes-selector{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;}
+  .mes-chip{appearance:none;font-family:inherit;display:inline-flex;align-items:center;gap:7px;padding:7px 13px 7px 10px;border:1.5px solid var(--gridline);border-radius:9px;background:var(--surface-2);color:var(--text-secondary);font-size:11.5px;font-weight:700;cursor:pointer;text-align:center;text-transform:capitalize;transition:background-color .15s ease,border-color .15s ease,color .15s ease;}
   .mes-chip:hover{border-color:var(--series-1);color:var(--text-primary);}
-  .mes-chip.activo{background:var(--series-1);border-color:var(--series-1);color:#fff;}
+  .mes-chip.activo{background:rgba(180,140,20,.08);border-color:var(--series-1);color:var(--text-primary);}
+  .mes-chip-box{width:15px;height:15px;border-radius:4px;border:1.5px solid var(--text-muted);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;color:#fff;transition:background-color .15s ease,border-color .15s ease;}
+  .mes-chip-box svg{width:10px;height:10px;display:block;}
+  .mes-chip.activo .mes-chip-box{background:var(--series-1);border-color:var(--series-1);}
   .produccion-total-card{background:var(--surface-2);border:1px solid var(--gridline);border-radius:10px;padding:12px 14px;margin-bottom:12px;text-align:center;}
   .produccion-total-ton{font-size:24px;font-weight:800;color:var(--text-primary);letter-spacing:-.01em;}
   .produccion-total-label{font-size:11px;color:var(--text-muted);font-weight:600;margin-top:2px;}
@@ -305,6 +313,13 @@
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 20V10M12 20V4M20 20v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
             <span>Producción por mes</span>
           </span>
+        </div>
+        <div class="produccion-mes-head">
+          <span class="produccion-mes-hint">Tocá los meses que querés ver — podés marcar varios</span>
+          <div class="produccion-mes-acciones">
+            <button type="button" class="mes-accion-btn" id="mes-accion-todos">Marcar todos</button>
+            <button type="button" class="mes-accion-btn" id="mes-accion-uno">Solo el último</button>
+          </div>
         </div>
         <div class="produccion-mes-selector" id="produccion-mes-selector"></div>
         <div class="produccion-total-card" id="produccion-total-card"></div>
@@ -460,6 +475,21 @@
 
   document.querySelectorAll('.vista-btn').forEach(b=>{
     b.addEventListener('click', ()=> cambiarVista(b.dataset.vista));
+  });
+
+  // Atajos del selector de meses de "Producción": marcar todos los meses
+  // con datos, o volver a dejar tildado solo el más reciente. Sirven tanto
+  // de ayuda práctica (no hay que tocar mes por mes para ver el año
+  // completo) como de pista de que se puede marcar más de uno.
+  document.getElementById('mes-accion-todos').addEventListener('click', ()=>{
+    const meses = agruparPorMes_(TODAS_LAS_CARGAS);
+    mesesSeleccionados = new Set(meses.map(m=>m.clave));
+    renderResumenProduccion(TODAS_LAS_CARGAS);
+  });
+  document.getElementById('mes-accion-uno').addEventListener('click', ()=>{
+    const meses = agruparPorMes_(TODAS_LAS_CARGAS);
+    mesesSeleccionados = meses.length ? new Set([meses[0].clave]) : new Set();
+    renderResumenProduccion(TODAS_LAS_CARGAS);
   });
 
   // El estado inicial (cambiarVista(vistaActual)) se dispara al final del
@@ -933,9 +963,14 @@
     mesesSeleccionados = new Set([...mesesSeleccionados].filter(k=> meses.some(m=>m.clave===k)));
     if(!mesesSeleccionados.size) mesesSeleccionados.add(meses[0].clave);
 
-    chipsCont.innerHTML = meses.map(m=>
-      `<button type="button" class="mes-chip ${mesesSeleccionados.has(m.clave)?'activo':''}" data-clave="${m.clave}">${m.nombre}</button>`
-    ).join('');
+    const CHECK_SVG = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 12l5 5L20 6" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    chipsCont.innerHTML = meses.map(m=>{
+      const activo = mesesSeleccionados.has(m.clave);
+      return `<button type="button" class="mes-chip ${activo?'activo':''}" data-clave="${m.clave}" aria-pressed="${activo}">
+        <span class="mes-chip-box">${activo ? CHECK_SVG : ''}</span>
+        <span>${m.nombre}</span>
+      </button>`;
+    }).join('');
     chipsCont.querySelectorAll('.mes-chip').forEach(b=>{
       b.addEventListener('click', ()=>{
         const clave = b.dataset.clave;
