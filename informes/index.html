@@ -193,6 +193,22 @@
   .tii-chevron{flex-shrink:0;color:var(--text-muted);}
   .turno-summary-total{margin-top:10px;padding-top:10px;border-top:1px dashed var(--gridline);font-size:11.5px;color:var(--text-muted);text-align:center;}
 
+  .produccion-summary{background:var(--card);border:1px solid var(--gridline);border-radius:12px;padding:14px;margin-bottom:14px;box-shadow:var(--shadow-sm);animation:cardIn .35s ease both;}
+  .periodo-selector{display:flex;gap:6px;margin-bottom:12px;}
+  .periodo-btn{appearance:none;font-family:inherit;flex:1 1 0;padding:8px 6px;border:1px solid var(--gridline);border-radius:8px;background:var(--surface-2);color:var(--text-secondary);font-size:11.5px;font-weight:700;cursor:pointer;text-align:center;transition:background-color .15s ease,border-color .15s ease,color .15s ease;}
+  .periodo-btn:hover{border-color:var(--series-1);color:var(--text-primary);}
+  .periodo-btn.activo{background:var(--series-1);border-color:var(--series-1);color:#fff;}
+  .produccion-total-card{background:var(--surface-2);border:1px solid var(--gridline);border-radius:10px;padding:12px 14px;margin-bottom:12px;text-align:center;}
+  .produccion-total-ton{font-size:24px;font-weight:800;color:var(--text-primary);letter-spacing:-.01em;}
+  .produccion-total-label{font-size:11px;color:var(--text-muted);font-weight:600;margin-top:2px;}
+  .produccion-total-stats{display:flex;justify-content:center;gap:16px;margin-top:8px;font-size:11.5px;color:var(--text-secondary);}
+  .produccion-total-stats b{color:var(--text-primary);}
+  .produccion-mes-list{display:flex;flex-direction:column;gap:8px;}
+  .produccion-mes-item{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--surface-2);border:1px solid var(--gridline);border-radius:9px;padding:9px 11px;}
+  .produccion-mes-nombre{font-size:13px;font-weight:700;color:var(--text-primary);text-transform:capitalize;}
+  .produccion-mes-stats{font-size:11.5px;color:var(--text-secondary);text-align:right;}
+  .produccion-mes-stats b{color:var(--text-primary);}
+
   .turno-detalle-list{display:flex;flex-direction:column;gap:8px;margin-top:2px;}
   .turno-detalle-item{appearance:none;font-family:inherit;display:block;width:100%;text-align:left;background:var(--surface-2);border:1px solid var(--gridline);border-radius:9px;padding:9px 11px;cursor:pointer;transition:border-color .15s ease, box-shadow .15s ease;}
   .turno-detalle-item:hover{border-color:var(--series-1);box-shadow:var(--shadow-sm);}
@@ -263,6 +279,7 @@
         <button type="button" class="vista-btn" data-vista="lote">Lote</button>
         <button type="button" class="vista-btn" data-vista="bloques">25 Tons</button>
         <button type="button" class="vista-btn" data-vista="bigbag">Detalle por BigBag</button>
+        <button type="button" class="vista-btn" data-vista="produccion">Producción</button>
       </div>
 
       <div class="turno-summary" id="turno-summary">
@@ -274,6 +291,22 @@
         </div>
         <div class="turno-instancia-list" id="turno-summary-grid"></div>
         <div class="turno-summary-total" id="turno-summary-total"></div>
+      </div>
+
+      <div class="produccion-summary hidden" id="produccion-summary">
+        <div class="turno-summary-head">
+          <span class="turno-summary-title">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 20V10M12 20V4M20 20v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span>Producción por mes</span>
+          </span>
+        </div>
+        <div class="periodo-selector" id="periodo-selector">
+          <button type="button" class="periodo-btn activo" data-meses="1">Último mes</button>
+          <button type="button" class="periodo-btn" data-meses="2">Últimos 2 meses</button>
+          <button type="button" class="periodo-btn" data-meses="3">Últimos 3 meses</button>
+        </div>
+        <div class="produccion-total-card" id="produccion-total-card"></div>
+        <div class="produccion-mes-list" id="produccion-mes-list"></div>
       </div>
 
       <div id="panel-datos">
@@ -414,7 +447,8 @@
     vistaActual = v;
     document.querySelectorAll('.vista-btn').forEach(b=> b.classList.toggle('activa', b.dataset.vista===v));
     document.getElementById('turno-summary').classList.toggle('hidden', v!=='turno');
-    document.getElementById('panel-datos').classList.toggle('hidden', v==='turno');
+    document.getElementById('produccion-summary').classList.toggle('hidden', v!=='produccion');
+    document.getElementById('panel-datos').classList.toggle('hidden', v==='turno' || v==='produccion');
     document.getElementById('vista-lote-grid').classList.toggle('hidden', v!=='lote');
     document.getElementById('vista-bloques-grid').classList.toggle('hidden', v!=='bloques');
     document.getElementById('vista-bigbag-list').classList.toggle('hidden', v!=='bigbag');
@@ -423,6 +457,19 @@
 
   document.querySelectorAll('.vista-btn').forEach(b=>{
     b.addEventListener('click', ()=> cambiarVista(b.dataset.vista));
+  });
+
+  // ---------- selector de período de la vista "Producción" (1/2/3 meses) ----------
+  let mesesAMostrar = 1; // "Último mes" por defecto — el que menos satura la pantalla
+
+  function cambiarPeriodoProduccion(n){
+    mesesAMostrar = n;
+    document.querySelectorAll('.periodo-btn').forEach(b=> b.classList.toggle('activo', Number(b.dataset.meses)===n));
+    renderResumenProduccion(TODAS_LAS_CARGAS);
+  }
+
+  document.querySelectorAll('.periodo-btn').forEach(b=>{
+    b.addEventListener('click', ()=> cambiarPeriodoProduccion(Number(b.dataset.meses)));
   });
   // El estado inicial (cambiarVista(vistaActual)) se dispara al final del
   // script, junto con iniciar() — recién ahí están definidas todas las
@@ -800,6 +847,82 @@
     return new Intl.NumberFormat('es-AR', { maximumFractionDigits: 2 }).format(ton) + ' t';
   }
 
+  // ---------- vista "Producción": totales por mes calendario ----------
+  // A pedido del usuario, para ver de un vistazo cuánto se produjo (en
+  // toneladas) mes a mes, con un promedio por día. "Día trabajado" acá
+  // significa un día de calendario que tiene al menos un bigbag cargado —
+  // no "día hábil" en el sentido de un calendario laboral fijo (feriados,
+  // fines de semana), porque en esta planta se produce de noche y algunos
+  // fines de semana también, así que un calendario laboral fijo daría un
+  // promedio incorrecto. Es el mismo criterio, aplicado por mes en vez de
+  // por turno.
+  const NOMBRES_MES = ['enero','febrero','marzo','abril','mayo','junio','julio',
+    'agosto','septiembre','octubre','noviembre','diciembre'];
+
+  function agruparPorMes_(datos){
+    const porMes = new Map(); // clave "AAAA-MM" -> { anio, mes, bigbags, dias:Set }
+    datos.forEach(c=>{
+      const p = fechaPartes_(c.fecha);
+      if(!p) return; // fecha no reconocible: no se puede ubicar en un mes
+      const clave = `${p.anio}-${p.mes}`;
+      if(!porMes.has(clave)) porMes.set(clave, { anio:p.anio, mes:p.mes, bigbags:0, dias:new Set() });
+      const m = porMes.get(clave);
+      m.bigbags += 1;
+      m.dias.add(`${p.anio}-${p.mes}-${p.dia}`);
+    });
+    return [...porMes.values()]
+      .map(m=>{
+        const toneladas = m.bigbags * TON_POR_BIGBAG;
+        const diasTrabajados = m.dias.size;
+        return {
+          clave: `${m.anio}-${m.mes}`, anio: m.anio, mes: m.mes,
+          nombre: `${NOMBRES_MES[Number(m.mes)-1]} ${m.anio}`,
+          bigbags: m.bigbags, toneladas, diasTrabajados,
+          promedioPorDia: diasTrabajados ? toneladas / diasTrabajados : 0
+        };
+      })
+      .sort((a,b)=> b.clave.localeCompare(a.clave)); // más nuevo arriba
+  }
+
+  // Muestra un total combinado del período elegido (1, 2 o 3 meses) arriba
+  // de todo, y el detalle mes por mes debajo — sin buscador ni modal, para
+  // no saturar la interfaz (a pedido explícito del usuario).
+  function renderResumenProduccion(datos){
+    const totalCont = document.getElementById('produccion-total-card');
+    const listCont = document.getElementById('produccion-mes-list');
+    if(!totalCont || !listCont) return;
+
+    const meses = agruparPorMes_(datos);
+    const mostrar = meses.slice(0, mesesAMostrar);
+
+    if(!mostrar.length){
+      totalCont.innerHTML = '';
+      listCont.innerHTML = `<div class="empty-state" style="padding:4px 0;">Todavía no hay bigbags con fecha cargada.</div>`;
+      return;
+    }
+
+    const totalTon = mostrar.reduce((s,m)=> s+m.toneladas, 0);
+    const totalDias = mostrar.reduce((s,m)=> s+m.diasTrabajados, 0);
+    const promedioGeneral = totalDias ? totalTon/totalDias : 0;
+    const etiquetaPeriodo = mesesAMostrar===1 ? 'Último mes' : `Últimos ${mesesAMostrar} meses`;
+
+    totalCont.innerHTML = `
+      <div class="produccion-total-ton">${formatTon(totalTon)}</div>
+      <div class="produccion-total-label">${etiquetaPeriodo} · ${mostrar.map(m=>m.nombre).join(' + ')}</div>
+      <div class="produccion-total-stats">
+        <span><b>${totalDias}</b> día${totalDias===1?'':'s'} trabajado${totalDias===1?'':'s'}</span>
+        <span><b>${formatTon(promedioGeneral)}</b> / día</span>
+      </div>
+    `;
+
+    listCont.innerHTML = mostrar.map(m=>`
+      <div class="produccion-mes-item">
+        <span class="produccion-mes-nombre">${m.nombre}</span>
+        <span class="produccion-mes-stats"><b>${formatTon(m.toneladas)}</b> · ${m.diasTrabajados} día${m.diasTrabajados===1?'':'s'} · ${formatTon(m.promedioPorDia)}/día</span>
+      </div>
+    `).join('');
+  }
+
   function promedio_(bbs, campo){
     const vals = bbs.map(b=>b[campo]).filter(v=> v!=null && !isNaN(v));
     if(!vals.length) return null;
@@ -865,6 +988,7 @@
   // ve la que corresponda a vistaActual — así cambiar de vista es instantáneo.
   function renderLotesGrid(datos){
     renderResumenTurno(datos);
+    renderResumenProduccion(datos);
     renderVistaLote(datos);
     renderVistaBloques(datos);
     renderVistaBigbag(datos);
