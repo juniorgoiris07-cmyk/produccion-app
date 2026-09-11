@@ -194,15 +194,21 @@
   .turno-summary-total{margin-top:10px;padding-top:10px;border-top:1px dashed var(--gridline);font-size:11.5px;color:var(--text-muted);text-align:center;}
 
   .produccion-summary{background:var(--card);border:1px solid var(--gridline);border-radius:12px;padding:14px;margin-bottom:14px;box-shadow:var(--shadow-sm);animation:cardIn .35s ease both;}
-  .periodo-selector{display:flex;gap:6px;margin-bottom:12px;}
-  .periodo-btn{appearance:none;font-family:inherit;flex:1 1 0;padding:8px 6px;border:1px solid var(--gridline);border-radius:8px;background:var(--surface-2);color:var(--text-secondary);font-size:11.5px;font-weight:700;cursor:pointer;text-align:center;transition:background-color .15s ease,border-color .15s ease,color .15s ease;}
-  .periodo-btn:hover{border-color:var(--series-1);color:var(--text-primary);}
-  .periodo-btn.activo{background:var(--series-1);border-color:var(--series-1);color:#fff;}
+  .produccion-mes-selector{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
+  .mes-chip{appearance:none;font-family:inherit;padding:7px 13px;border:1px solid var(--gridline);border-radius:20px;background:var(--surface-2);color:var(--text-secondary);font-size:11.5px;font-weight:700;cursor:pointer;text-align:center;text-transform:capitalize;transition:background-color .15s ease,border-color .15s ease,color .15s ease;}
+  .mes-chip:hover{border-color:var(--series-1);color:var(--text-primary);}
+  .mes-chip.activo{background:var(--series-1);border-color:var(--series-1);color:#fff;}
   .produccion-total-card{background:var(--surface-2);border:1px solid var(--gridline);border-radius:10px;padding:12px 14px;margin-bottom:12px;text-align:center;}
   .produccion-total-ton{font-size:24px;font-weight:800;color:var(--text-primary);letter-spacing:-.01em;}
   .produccion-total-label{font-size:11px;color:var(--text-muted);font-weight:600;margin-top:2px;}
   .produccion-total-stats{display:flex;justify-content:center;gap:16px;margin-top:8px;font-size:11.5px;color:var(--text-secondary);}
   .produccion-total-stats b{color:var(--text-primary);}
+  .produccion-turno-card{display:flex;gap:10px;margin-bottom:12px;}
+  .produccion-turno-col{flex:1 1 0;background:var(--surface-2);border:1px solid var(--gridline);border-radius:10px;padding:10px 8px;text-align:center;}
+  .produccion-turno-col .pt-nombre{display:flex;align-items:center;justify-content:center;gap:5px;font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;}
+  .produccion-turno-col .pt-nombre svg{color:var(--series-1);flex-shrink:0;}
+  .produccion-turno-col .pt-ton{font-size:18px;font-weight:800;color:var(--text-primary);}
+  .produccion-turno-col .pt-detalle{font-size:10.5px;color:var(--text-secondary);margin-top:2px;}
   .produccion-mes-list{display:flex;flex-direction:column;gap:8px;}
   .produccion-mes-item{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--surface-2);border:1px solid var(--gridline);border-radius:9px;padding:9px 11px;}
   .produccion-mes-nombre{font-size:13px;font-weight:700;color:var(--text-primary);text-transform:capitalize;}
@@ -300,12 +306,9 @@
             <span>Producción por mes</span>
           </span>
         </div>
-        <div class="periodo-selector" id="periodo-selector">
-          <button type="button" class="periodo-btn activo" data-meses="1">Último mes</button>
-          <button type="button" class="periodo-btn" data-meses="2">Últimos 2 meses</button>
-          <button type="button" class="periodo-btn" data-meses="3">Últimos 3 meses</button>
-        </div>
+        <div class="produccion-mes-selector" id="produccion-mes-selector"></div>
         <div class="produccion-total-card" id="produccion-total-card"></div>
+        <div class="produccion-turno-card" id="produccion-turno-card"></div>
         <div class="produccion-mes-list" id="produccion-mes-list"></div>
       </div>
 
@@ -459,18 +462,6 @@
     b.addEventListener('click', ()=> cambiarVista(b.dataset.vista));
   });
 
-  // ---------- selector de período de la vista "Producción" (1/2/3 meses) ----------
-  let mesesAMostrar = 1; // "Último mes" por defecto — el que menos satura la pantalla
-
-  function cambiarPeriodoProduccion(n){
-    mesesAMostrar = n;
-    document.querySelectorAll('.periodo-btn').forEach(b=> b.classList.toggle('activo', Number(b.dataset.meses)===n));
-    renderResumenProduccion(TODAS_LAS_CARGAS);
-  }
-
-  document.querySelectorAll('.periodo-btn').forEach(b=>{
-    b.addEventListener('click', ()=> cambiarPeriodoProduccion(Number(b.dataset.meses)));
-  });
   // El estado inicial (cambiarVista(vistaActual)) se dispara al final del
   // script, junto con iniciar() — recién ahí están definidas todas las
   // funciones/constantes de renderizado que usa.
@@ -884,36 +875,105 @@
       .sort((a,b)=> b.clave.localeCompare(a.clave)); // más nuevo arriba
   }
 
-  // Muestra un total combinado del período elegido (1, 2 o 3 meses) arriba
-  // de todo, y el detalle mes por mes debajo — sin buscador ni modal, para
-  // no saturar la interfaz (a pedido explícito del usuario).
+  // Desglosa el total de un conjunto de meses en Turno Día / Turno Noche —
+  // mismo criterio "noche" que usa calcularInstanciasTurno_ (esNoche =
+  // /noche|nocturno/i sobre el nombre de turno); cualquier otro nombre de
+  // turno que exista (hoy solo hay "DIA") cae en el balde "Día". Cada
+  // balde tiene su propio conteo de días trabajados y promedio — un mes
+  // con mucha noche y poco día (o viceversa) se nota de un vistazo.
+  function desglosePorTurno_(datos, clavesMes){
+    const baldes = { noche: { bigbags:0, dias:new Set() }, dia: { bigbags:0, dias:new Set() } };
+    datos.forEach(c=>{
+      const p = fechaPartes_(c.fecha);
+      if(!p) return;
+      if(!clavesMes.has(`${p.anio}-${p.mes}`)) return;
+      const esNoche = /noche|nocturno/i.test(String(c.turno||''));
+      const b = esNoche ? baldes.noche : baldes.dia;
+      b.bigbags += 1;
+      b.dias.add(`${p.anio}-${p.mes}-${p.dia}`);
+    });
+    return ['dia','noche'].map(k=>{
+      const b = baldes[k];
+      const toneladas = b.bigbags * TON_POR_BIGBAG;
+      const dias = b.dias.size;
+      return { clave:k, nombre: k==='dia' ? 'Día' : 'Noche', toneladas, dias, promedioPorDia: dias ? toneladas/dias : 0 };
+    });
+  }
+
+  // Qué mes(es) están tildados en el selector de la vista "Producción" —
+  // por defecto el más reciente (el que menos satura la pantalla). Se
+  // guarda por clave "AAAA-MM" para que sobreviva a un recargarDatos().
+  let mesesSeleccionados = null;
+
+  // Selector de mes(es) + total combinado arriba, desglose Día/Noche en
+  // el medio, y el detalle mes por mes abajo. Reemplaza al viejo selector
+  // fijo de "1/2/3 meses" — ahora se puede elegir cualquier combinación
+  // de meses reales (a pedido del usuario, que lo encontró más práctico).
   function renderResumenProduccion(datos){
+    const chipsCont = document.getElementById('produccion-mes-selector');
     const totalCont = document.getElementById('produccion-total-card');
+    const turnoCont = document.getElementById('produccion-turno-card');
     const listCont = document.getElementById('produccion-mes-list');
-    if(!totalCont || !listCont) return;
+    if(!chipsCont || !totalCont || !listCont) return;
 
     const meses = agruparPorMes_(datos);
-    const mostrar = meses.slice(0, mesesAMostrar);
 
-    if(!mostrar.length){
+    if(!meses.length){
+      chipsCont.innerHTML = '';
       totalCont.innerHTML = '';
+      if(turnoCont) turnoCont.innerHTML = '';
       listCont.innerHTML = `<div class="empty-state" style="padding:4px 0;">Todavía no hay bigbags con fecha cargada.</div>`;
       return;
     }
 
+    // Primera vez: arranca con el mes más reciente tildado. Si datos
+    // nuevos hicieron desaparecer algún mes tildado (no debería pasar en
+    // la práctica), se lo saca de la selección para no dejarla vacía.
+    if(!mesesSeleccionados) mesesSeleccionados = new Set([meses[0].clave]);
+    mesesSeleccionados = new Set([...mesesSeleccionados].filter(k=> meses.some(m=>m.clave===k)));
+    if(!mesesSeleccionados.size) mesesSeleccionados.add(meses[0].clave);
+
+    chipsCont.innerHTML = meses.map(m=>
+      `<button type="button" class="mes-chip ${mesesSeleccionados.has(m.clave)?'activo':''}" data-clave="${m.clave}">${m.nombre}</button>`
+    ).join('');
+    chipsCont.querySelectorAll('.mes-chip').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        const clave = b.dataset.clave;
+        if(mesesSeleccionados.has(clave)){
+          if(mesesSeleccionados.size > 1) mesesSeleccionados.delete(clave); // no dejar la selección vacía
+        } else {
+          mesesSeleccionados.add(clave);
+        }
+        renderResumenProduccion(TODAS_LAS_CARGAS);
+      });
+    });
+
+    const mostrar = meses.filter(m=> mesesSeleccionados.has(m.clave)); // ya viene ordenado, más nuevo arriba
+
     const totalTon = mostrar.reduce((s,m)=> s+m.toneladas, 0);
     const totalDias = mostrar.reduce((s,m)=> s+m.diasTrabajados, 0);
     const promedioGeneral = totalDias ? totalTon/totalDias : 0;
-    const etiquetaPeriodo = mesesAMostrar===1 ? 'Último mes' : `Últimos ${mesesAMostrar} meses`;
+    const etiqueta = mostrar.length===1 ? mostrar[0].nombre : `${mostrar.length} meses seleccionados`;
 
     totalCont.innerHTML = `
       <div class="produccion-total-ton">${formatTon(totalTon)}</div>
-      <div class="produccion-total-label">${etiquetaPeriodo} · ${mostrar.map(m=>m.nombre).join(' + ')}</div>
+      <div class="produccion-total-label">${etiqueta}${mostrar.length>1 ? ' · '+mostrar.map(m=>m.nombre).join(' + ') : ''}</div>
       <div class="produccion-total-stats">
         <span><b>${totalDias}</b> día${totalDias===1?'':'s'} trabajado${totalDias===1?'':'s'}</span>
         <span><b>${formatTon(promedioGeneral)}</b> / día</span>
       </div>
     `;
+
+    if(turnoCont){
+      const porTurno = desglosePorTurno_(datos, mesesSeleccionados);
+      turnoCont.innerHTML = porTurno.map(t=>`
+        <div class="produccion-turno-col">
+          <div class="pt-nombre">${iconoTurno(t.nombre)} ${t.nombre}</div>
+          <div class="pt-ton">${formatTon(t.toneladas)}</div>
+          <div class="pt-detalle">${t.dias} día${t.dias===1?'':'s'} · ${formatTon(t.promedioPorDia)}/día</div>
+        </div>
+      `).join('');
+    }
 
     listCont.innerHTML = mostrar.map(m=>`
       <div class="produccion-mes-item">
