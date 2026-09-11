@@ -163,14 +163,17 @@ hay ninguna otra app ni servicio intermedio involucrado.
   ve bigbag por bigbag, para detectarlo de un vistazo sin tener que abrir
   la ficha de cada uno.
 - La vista **"Producción"** de Informes muestra el total producido (en
-  toneladas) mes a mes, con un botón para elegir ver el último mes, los
-  últimos 2 o los últimos 3 (arriba un total combinado del período
-  elegido, abajo el detalle de cada mes por separado). Cada mes también
-  muestra los días que tuvieron producción cargada y el promedio de
-  toneladas por esos días — cuenta como "día trabajado" cualquier día de
-  calendario con al menos un bigbag cargado (no un calendario laboral fijo
-  de lunes a viernes), porque acá se produce de noche y algunos fines de
-  semana también.
+  toneladas) mes a mes. Arriba aparecen "chips" con todos los meses que
+  tienen producción cargada; se puede tocar uno o varios para combinarlos
+  a gusto (no hay que elegir un rango fijo de 1/2/3 meses, es libre — y
+  siempre queda al menos un mes seleccionado). Con esos meses elegidos se
+  ve: un total combinado (toneladas, días trabajados y promedio por día),
+  un desglose aparte de cuánto se produjo en turno Día y cuánto en turno
+  Noche (mismo período elegido), y más abajo el detalle de cada mes por
+  separado. Cuenta como "día trabajado" cualquier día de calendario con al
+  menos un bigbag cargado (no un calendario laboral fijo de lunes a
+  viernes), porque acá se produce de noche y algunos fines de semana
+  también.
 - Las dos apps hablan con la planilla a través de una "app web" de Google
   Apps Script (un pequeño backend, ya armado y funcionando).
 - Si alguna vez necesitás la URL de esa app web de nuevo (por ejemplo para
