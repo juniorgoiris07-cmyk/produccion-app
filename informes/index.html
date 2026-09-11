@@ -194,18 +194,11 @@
   .turno-summary-total{margin-top:10px;padding-top:10px;border-top:1px dashed var(--gridline);font-size:11.5px;color:var(--text-muted);text-align:center;}
 
   .produccion-summary{background:var(--card);border:1px solid var(--gridline);border-radius:12px;padding:14px;margin-bottom:14px;box-shadow:var(--shadow-sm);animation:cardIn .35s ease both;}
-  .produccion-mes-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
-  .produccion-mes-hint{font-size:11px;color:var(--text-muted);font-weight:600;line-height:1.4;}
-  .produccion-mes-acciones{display:flex;gap:12px;flex-shrink:0;}
-  .mes-accion-btn{appearance:none;font-family:inherit;background:none;border:none;padding:0;margin:0;font-size:11px;font-weight:800;color:var(--series-1);cursor:pointer;text-decoration:underline;text-underline-offset:2px;white-space:nowrap;}
-  .mes-accion-btn:hover{opacity:.75;}
-  .produccion-mes-selector{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;}
-  .mes-chip{appearance:none;font-family:inherit;display:inline-flex;align-items:center;gap:7px;padding:7px 13px 7px 10px;border:1.5px solid var(--gridline);border-radius:9px;background:var(--surface-2);color:var(--text-secondary);font-size:11.5px;font-weight:700;cursor:pointer;text-align:center;text-transform:capitalize;transition:background-color .15s ease,border-color .15s ease,color .15s ease;}
-  .mes-chip:hover{border-color:var(--series-1);color:var(--text-primary);}
-  .mes-chip.activo{background:rgba(180,140,20,.08);border-color:var(--series-1);color:var(--text-primary);}
-  .mes-chip-box{width:15px;height:15px;border-radius:4px;border:1.5px solid var(--text-muted);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;color:#fff;transition:background-color .15s ease,border-color .15s ease;}
-  .mes-chip-box svg{width:10px;height:10px;display:block;}
-  .mes-chip.activo .mes-chip-box{background:var(--series-1);border-color:var(--series-1);}
+  .produccion-rango{display:flex;align-items:flex-end;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
+  .produccion-rango-campo{display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:var(--text-muted);flex:1 1 130px;min-width:130px;}
+  .produccion-rango-campo select{font-family:inherit;padding:9px 10px;border:1.5px solid var(--gridline);border-radius:9px;background:var(--surface-2);color:var(--text-primary);font-size:13px;font-weight:700;text-transform:capitalize;cursor:pointer;}
+  .produccion-rango-campo select:focus{outline:none;border-color:var(--series-1);}
+  .produccion-rango-flecha{padding-bottom:10px;color:var(--text-muted);font-weight:700;font-size:15px;}
   .produccion-total-card{background:var(--surface-2);border:1px solid var(--gridline);border-radius:10px;padding:12px 14px;margin-bottom:12px;text-align:center;}
   .produccion-total-ton{font-size:24px;font-weight:800;color:var(--text-primary);letter-spacing:-.01em;}
   .produccion-total-label{font-size:11px;color:var(--text-muted);font-weight:600;margin-top:2px;}
@@ -314,14 +307,17 @@
             <span>Producción por mes</span>
           </span>
         </div>
-        <div class="produccion-mes-head">
-          <span class="produccion-mes-hint">Tocá los meses que querés ver — podés marcar varios</span>
-          <div class="produccion-mes-acciones">
-            <button type="button" class="mes-accion-btn" id="mes-accion-todos">Marcar todos</button>
-            <button type="button" class="mes-accion-btn" id="mes-accion-uno">Solo el último</button>
-          </div>
+        <div class="produccion-rango">
+          <label class="produccion-rango-campo">
+            <span>Desde</span>
+            <select id="produccion-desde"></select>
+          </label>
+          <span class="produccion-rango-flecha">→</span>
+          <label class="produccion-rango-campo">
+            <span>Hasta</span>
+            <select id="produccion-hasta"></select>
+          </label>
         </div>
-        <div class="produccion-mes-selector" id="produccion-mes-selector"></div>
         <div class="produccion-total-card" id="produccion-total-card"></div>
         <div class="produccion-turno-card" id="produccion-turno-card"></div>
         <div class="produccion-mes-list" id="produccion-mes-list"></div>
@@ -475,21 +471,6 @@
 
   document.querySelectorAll('.vista-btn').forEach(b=>{
     b.addEventListener('click', ()=> cambiarVista(b.dataset.vista));
-  });
-
-  // Atajos del selector de meses de "Producción": marcar todos los meses
-  // con datos, o volver a dejar tildado solo el más reciente. Sirven tanto
-  // de ayuda práctica (no hay que tocar mes por mes para ver el año
-  // completo) como de pista de que se puede marcar más de uno.
-  document.getElementById('mes-accion-todos').addEventListener('click', ()=>{
-    const meses = agruparPorMes_(TODAS_LAS_CARGAS);
-    mesesSeleccionados = new Set(meses.map(m=>m.clave));
-    renderResumenProduccion(TODAS_LAS_CARGAS);
-  });
-  document.getElementById('mes-accion-uno').addEventListener('click', ()=>{
-    const meses = agruparPorMes_(TODAS_LAS_CARGAS);
-    mesesSeleccionados = meses.length ? new Set([meses[0].clave]) : new Set();
-    renderResumenProduccion(TODAS_LAS_CARGAS);
   });
 
   // El estado inicial (cambiarVista(vistaActual)) se dispara al final del
@@ -930,69 +911,72 @@
     });
   }
 
-  // Qué mes(es) están tildados en el selector de la vista "Producción" —
-  // por defecto el más reciente (el que menos satura la pantalla). Se
-  // guarda por clave "AAAA-MM" para que sobreviva a un recargarDatos().
-  let mesesSeleccionados = null;
+  // Rango elegido en la vista "Producción" (claves "AAAA-MM"). Por
+  // defecto Desde = Hasta = el mes más reciente, para no saturar la
+  // pantalla al abrir. Vive fuera de la función para que sobreviva a un
+  // recargarDatos().
+  let rangoDesde = null;
+  let rangoHasta = null;
 
-  // Selector de mes(es) + total combinado arriba, desglose Día/Noche en
-  // el medio, y el detalle mes por mes abajo. Reemplaza al viejo selector
-  // fijo de "1/2/3 meses" — ahora se puede elegir cualquier combinación
-  // de meses reales (a pedido del usuario, que lo encontró más práctico).
+  // Rango "Desde" / "Hasta" + total combinado arriba, desglose Día/Noche
+  // en el medio, y el detalle mes por mes abajo. Dos selects simples en
+  // vez de ir tildando meses uno por uno (eso resultó confuso) — elegís
+  // el mes inicial y el final, como el filtro de fechas de cualquier
+  // planilla, y ya ves todo lo que hay en el medio. Para ver un solo mes,
+  // Desde y Hasta van al mismo mes (así arranca por defecto: el más
+  // reciente).
   function renderResumenProduccion(datos){
-    const chipsCont = document.getElementById('produccion-mes-selector');
+    const selectDesde = document.getElementById('produccion-desde');
+    const selectHasta = document.getElementById('produccion-hasta');
     const totalCont = document.getElementById('produccion-total-card');
     const turnoCont = document.getElementById('produccion-turno-card');
     const listCont = document.getElementById('produccion-mes-list');
-    if(!chipsCont || !totalCont || !listCont) return;
+    if(!selectDesde || !selectHasta || !totalCont || !listCont) return;
 
-    const meses = agruparPorMes_(datos);
-
+    const meses = agruparPorMes_(datos); // más reciente primero
     if(!meses.length){
-      chipsCont.innerHTML = '';
+      selectDesde.innerHTML = '';
+      selectHasta.innerHTML = '';
       totalCont.innerHTML = '';
       if(turnoCont) turnoCont.innerHTML = '';
       listCont.innerHTML = `<div class="empty-state" style="padding:4px 0;">Todavía no hay bigbags con fecha cargada.</div>`;
       return;
     }
 
-    // Primera vez: arranca con el mes más reciente tildado. Si datos
-    // nuevos hicieron desaparecer algún mes tildado (no debería pasar en
-    // la práctica), se lo saca de la selección para no dejarla vacía.
-    if(!mesesSeleccionados) mesesSeleccionados = new Set([meses[0].clave]);
-    mesesSeleccionados = new Set([...mesesSeleccionados].filter(k=> meses.some(m=>m.clave===k)));
-    if(!mesesSeleccionados.size) mesesSeleccionados.add(meses[0].clave);
+    const mesesAsc = [...meses].reverse(); // más antiguo primero, orden natural para "Desde -> Hasta"
 
-    const CHECK_SVG = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 12l5 5L20 6" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-    chipsCont.innerHTML = meses.map(m=>{
-      const activo = mesesSeleccionados.has(m.clave);
-      return `<button type="button" class="mes-chip ${activo?'activo':''}" data-clave="${m.clave}" aria-pressed="${activo}">
-        <span class="mes-chip-box">${activo ? CHECK_SVG : ''}</span>
-        <span>${m.nombre}</span>
-      </button>`;
-    }).join('');
-    chipsCont.querySelectorAll('.mes-chip').forEach(b=>{
-      b.addEventListener('click', ()=>{
-        const clave = b.dataset.clave;
-        if(mesesSeleccionados.has(clave)){
-          if(mesesSeleccionados.size > 1) mesesSeleccionados.delete(clave); // no dejar la selección vacía
-        } else {
-          mesesSeleccionados.add(clave);
-        }
-        renderResumenProduccion(TODAS_LAS_CARGAS);
-      });
-    });
+    // Primera vez, o si el mes elegido ya no existe: arranca con el más
+    // reciente tildado en los dos selects (un solo mes, lo más simple).
+    if(!rangoDesde || !mesesAsc.some(m=>m.clave===rangoDesde)) rangoDesde = meses[0].clave;
+    if(!rangoHasta || !mesesAsc.some(m=>m.clave===rangoHasta)) rangoHasta = meses[0].clave;
 
-    const mostrar = meses.filter(m=> mesesSeleccionados.has(m.clave)); // ya viene ordenado, más nuevo arriba
+    // Si por el orden en que se tocaron los selects "Desde" quedó después
+    // que "Hasta", se acomoda solo para que el rango nunca quede invertido
+    // ni vacío.
+    let idxDesde = mesesAsc.findIndex(m=>m.clave===rangoDesde);
+    let idxHasta = mesesAsc.findIndex(m=>m.clave===rangoHasta);
+    if(idxDesde > idxHasta){ rangoHasta = rangoDesde; idxHasta = idxDesde; }
+
+    const opciones = mesesAsc.map(m=>`<option value="${m.clave}">${m.nombre}</option>`).join('');
+    selectDesde.innerHTML = opciones;
+    selectHasta.innerHTML = opciones;
+    selectDesde.value = rangoDesde;
+    selectHasta.value = rangoHasta;
+    selectDesde.onchange = ()=>{ rangoDesde = selectDesde.value; renderResumenProduccion(TODAS_LAS_CARGAS); };
+    selectHasta.onchange = ()=>{ rangoHasta = selectHasta.value; renderResumenProduccion(TODAS_LAS_CARGAS); };
+
+    const mostrarAsc = mesesAsc.slice(idxDesde, idxHasta+1); // el rango elegido, del más antiguo al más nuevo
+    const mostrar = [...mostrarAsc].reverse(); // para la lista de abajo, más nuevo arriba (como el resto de la app)
+    const clavesMes = new Set(mostrarAsc.map(m=>m.clave));
 
     const totalTon = mostrar.reduce((s,m)=> s+m.toneladas, 0);
     const totalDias = mostrar.reduce((s,m)=> s+m.diasTrabajados, 0);
     const promedioGeneral = totalDias ? totalTon/totalDias : 0;
-    const etiqueta = mostrar.length===1 ? mostrar[0].nombre : `${mostrar.length} meses seleccionados`;
+    const etiqueta = mostrarAsc.length===1 ? mostrarAsc[0].nombre : `${mostrarAsc[0].nombre} – ${mostrarAsc[mostrarAsc.length-1].nombre}`;
 
     totalCont.innerHTML = `
       <div class="produccion-total-ton">${formatTon(totalTon)}</div>
-      <div class="produccion-total-label">${etiqueta}${mostrar.length>1 ? ' · '+mostrar.map(m=>m.nombre).join(' + ') : ''}</div>
+      <div class="produccion-total-label">${etiqueta}</div>
       <div class="produccion-total-stats">
         <span><b>${totalDias}</b> día${totalDias===1?'':'s'} trabajado${totalDias===1?'':'s'}</span>
         <span><b>${formatTon(promedioGeneral)}</b> / día</span>
@@ -1000,7 +984,7 @@
     `;
 
     if(turnoCont){
-      const porTurno = desglosePorTurno_(datos, mesesSeleccionados);
+      const porTurno = desglosePorTurno_(datos, clavesMes);
       turnoCont.innerHTML = porTurno.map(t=>`
         <div class="produccion-turno-col">
           <div class="pt-nombre">${iconoTurno(t.nombre)} ${t.nombre}</div>
