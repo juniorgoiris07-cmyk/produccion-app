@@ -194,11 +194,10 @@
   .turno-summary-total{margin-top:10px;padding-top:10px;border-top:1px dashed var(--gridline);font-size:11.5px;color:var(--text-muted);text-align:center;}
 
   .produccion-summary{background:var(--card);border:1px solid var(--gridline);border-radius:12px;padding:14px;margin-bottom:14px;box-shadow:var(--shadow-sm);animation:cardIn .35s ease both;}
-  .produccion-rango{display:flex;align-items:flex-end;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
-  .produccion-rango-campo{display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:var(--text-muted);flex:1 1 130px;min-width:130px;}
-  .produccion-rango-campo select{font-family:inherit;padding:9px 10px;border:1.5px solid var(--gridline);border-radius:9px;background:var(--surface-2);color:var(--text-primary);font-size:13px;font-weight:700;text-transform:capitalize;cursor:pointer;}
-  .produccion-rango-campo select:focus{outline:none;border-color:var(--series-1);}
-  .produccion-rango-flecha{padding-bottom:10px;color:var(--text-muted);font-weight:700;font-size:15px;}
+  .produccion-periodo{display:flex;flex-direction:column;gap:4px;margin-bottom:12px;}
+  .produccion-periodo label{font-size:11px;font-weight:700;color:var(--text-muted);}
+  .produccion-periodo select{font-family:inherit;width:100%;padding:11px 12px;border:1.5px solid var(--gridline);border-radius:9px;background:var(--surface-2);color:var(--text-primary);font-size:14px;font-weight:700;cursor:pointer;}
+  .produccion-periodo select:focus{outline:none;border-color:var(--series-1);}
   .produccion-total-card{background:var(--surface-2);border:1px solid var(--gridline);border-radius:10px;padding:12px 14px;margin-bottom:12px;text-align:center;}
   .produccion-total-ton{font-size:24px;font-weight:800;color:var(--text-primary);letter-spacing:-.01em;}
   .produccion-total-label{font-size:11px;color:var(--text-muted);font-weight:600;margin-top:2px;}
@@ -307,16 +306,16 @@
             <span>Producción por mes</span>
           </span>
         </div>
-        <div class="produccion-rango">
-          <label class="produccion-rango-campo">
-            <span>Desde</span>
-            <select id="produccion-desde"></select>
-          </label>
-          <span class="produccion-rango-flecha">→</span>
-          <label class="produccion-rango-campo">
-            <span>Hasta</span>
-            <select id="produccion-hasta"></select>
-          </label>
+        <div class="produccion-periodo">
+          <label for="produccion-periodo-select">Período</label>
+          <select id="produccion-periodo-select">
+            <option value="este-mes">Este mes</option>
+            <option value="mes-anterior">Mes anterior</option>
+            <option value="ultimos-3">Últimos 3 meses</option>
+            <option value="ultimos-6">Últimos 6 meses</option>
+            <option value="este-anio">Este año</option>
+            <option value="todo">Todo</option>
+          </select>
         </div>
         <div class="produccion-total-card" id="produccion-total-card"></div>
         <div class="produccion-turno-card" id="produccion-turno-card"></div>
@@ -911,63 +910,55 @@
     });
   }
 
-  // Rango elegido en la vista "Producción" (claves "AAAA-MM"). Por
-  // defecto Desde = Hasta = el mes más reciente, para no saturar la
-  // pantalla al abrir. Vive fuera de la función para que sobreviva a un
-  // recargarDatos().
-  let rangoDesde = null;
-  let rangoHasta = null;
+  // Qué período está elegido en la vista "Producción". Guarda la CLAVE del
+  // preset (no fechas ni meses sueltos) para que sobreviva a un
+  // recargarDatos(). Arranca en "este-mes" — un solo mes, lo más simple.
+  let periodoProduccion = 'este-mes';
 
-  // Rango "Desde" / "Hasta" + total combinado arriba, desglose Día/Noche
-  // en el medio, y el detalle mes por mes abajo. Dos selects simples en
-  // vez de ir tildando meses uno por uno (eso resultó confuso) — elegís
-  // el mes inicial y el final, como el filtro de fechas de cualquier
-  // planilla, y ya ves todo lo que hay en el medio. Para ver un solo mes,
-  // Desde y Hasta van al mismo mes (así arranca por defecto: el más
-  // reciente).
+  // Traduce un preset ("este-mes", "últimos 3 meses", etc.) a la lista de
+  // meses que hay que sumar. `meses` viene de agruparPorMes_: más
+  // reciente primero. Los presets son un menú único y conocido (el mismo
+  // patrón de "período" de cualquier app de ventas o de banco) en vez de
+  // ir armando el rango a mano — así no hay nada que explicar.
+  function mesesDelPeriodo_(meses, periodo){
+    switch(periodo){
+      case 'mes-anterior': return meses.length>1 ? meses.slice(1,2) : meses.slice(0,1);
+      case 'ultimos-3': return meses.slice(0, Math.min(3, meses.length));
+      case 'ultimos-6': return meses.slice(0, Math.min(6, meses.length));
+      case 'este-anio': { const anio = meses[0].anio; return meses.filter(m=>m.anio===anio); }
+      case 'todo': return meses;
+      case 'este-mes':
+      default: return meses.slice(0,1);
+    }
+  }
+
+  // Selector de período (un solo <select> con opciones conocidas) + total
+  // combinado arriba, desglose Día/Noche en el medio, y el detalle mes por
+  // mes abajo. Reemplaza los intentos anteriores (chips para tildar varios
+  // meses, rango Desde/Hasta) que resultaron confusos — esto es un único
+  // menú desplegable con nombres de toda la vida, para que lo entienda
+  // alguien que nunca usó el sistema.
   function renderResumenProduccion(datos){
-    const selectDesde = document.getElementById('produccion-desde');
-    const selectHasta = document.getElementById('produccion-hasta');
+    const selectPeriodo = document.getElementById('produccion-periodo-select');
     const totalCont = document.getElementById('produccion-total-card');
     const turnoCont = document.getElementById('produccion-turno-card');
     const listCont = document.getElementById('produccion-mes-list');
-    if(!selectDesde || !selectHasta || !totalCont || !listCont) return;
+    if(!selectPeriodo || !totalCont || !listCont) return;
 
     const meses = agruparPorMes_(datos); // más reciente primero
     if(!meses.length){
-      selectDesde.innerHTML = '';
-      selectHasta.innerHTML = '';
       totalCont.innerHTML = '';
       if(turnoCont) turnoCont.innerHTML = '';
       listCont.innerHTML = `<div class="empty-state" style="padding:4px 0;">Todavía no hay bigbags con fecha cargada.</div>`;
       return;
     }
 
-    const mesesAsc = [...meses].reverse(); // más antiguo primero, orden natural para "Desde -> Hasta"
+    selectPeriodo.value = periodoProduccion;
+    selectPeriodo.onchange = ()=>{ periodoProduccion = selectPeriodo.value; renderResumenProduccion(TODAS_LAS_CARGAS); };
 
-    // Primera vez, o si el mes elegido ya no existe: arranca con el más
-    // reciente tildado en los dos selects (un solo mes, lo más simple).
-    if(!rangoDesde || !mesesAsc.some(m=>m.clave===rangoDesde)) rangoDesde = meses[0].clave;
-    if(!rangoHasta || !mesesAsc.some(m=>m.clave===rangoHasta)) rangoHasta = meses[0].clave;
-
-    // Si por el orden en que se tocaron los selects "Desde" quedó después
-    // que "Hasta", se acomoda solo para que el rango nunca quede invertido
-    // ni vacío.
-    let idxDesde = mesesAsc.findIndex(m=>m.clave===rangoDesde);
-    let idxHasta = mesesAsc.findIndex(m=>m.clave===rangoHasta);
-    if(idxDesde > idxHasta){ rangoHasta = rangoDesde; idxHasta = idxDesde; }
-
-    const opciones = mesesAsc.map(m=>`<option value="${m.clave}">${m.nombre}</option>`).join('');
-    selectDesde.innerHTML = opciones;
-    selectHasta.innerHTML = opciones;
-    selectDesde.value = rangoDesde;
-    selectHasta.value = rangoHasta;
-    selectDesde.onchange = ()=>{ rangoDesde = selectDesde.value; renderResumenProduccion(TODAS_LAS_CARGAS); };
-    selectHasta.onchange = ()=>{ rangoHasta = selectHasta.value; renderResumenProduccion(TODAS_LAS_CARGAS); };
-
-    const mostrarAsc = mesesAsc.slice(idxDesde, idxHasta+1); // el rango elegido, del más antiguo al más nuevo
-    const mostrar = [...mostrarAsc].reverse(); // para la lista de abajo, más nuevo arriba (como el resto de la app)
-    const clavesMes = new Set(mostrarAsc.map(m=>m.clave));
+    const mostrar = mesesDelPeriodo_(meses, periodoProduccion); // más reciente primero
+    const mostrarAsc = [...mostrar].reverse(); // más antiguo primero, para el rótulo "X – Y"
+    const clavesMes = new Set(mostrar.map(m=>m.clave));
 
     const totalTon = mostrar.reduce((s,m)=> s+m.toneladas, 0);
     const totalDias = mostrar.reduce((s,m)=> s+m.diasTrabajados, 0);
