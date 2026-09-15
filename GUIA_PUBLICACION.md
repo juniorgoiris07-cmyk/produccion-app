@@ -20,9 +20,15 @@ pwa-produccion/
 │   ├── sw.js
 │   └── icons/
 ├── apps-script/
-│   └── Code.gs            (copia de referencia del backend; el que manda
-│                            es el que está pegado en Extensiones → Apps
-│                            Script, dentro de la planilla)
+│   └── Code.gs            (copia de referencia del backend de Producción;
+│                            el que manda es el que está pegado en
+│                            Extensiones → Apps Script, dentro de la
+│                            planilla "Gestión de Producción")
+├── apps-script-comercial/
+│   └── Code.gs            (copia de referencia del backend de login/roles;
+│                            el que manda está pegado en Extensiones → Apps
+│                            Script, dentro de la planilla "Gestión
+│                            Comercial")
 └── GUIA_PUBLICACION.md    (este archivo)
 ```
 
@@ -114,12 +120,17 @@ Eliminar app.
 
 ## Primer uso en cada teléfono
 
-Ninguna de las dos apps tiene usuario ni contraseña — no hace falta
-loguearse. La primera vez que se abre alguna en un teléfono nuevo, pide
-una sola cosa: la **URL de la app web de Google Apps Script** (ver la
+**Carga** no tiene usuario ni contraseña — no hace falta loguearse, la usa
+cualquiera. La primera vez que se abre en un teléfono nuevo, pide una sola
+cosa: la **URL de la app web de Google Apps Script de Producción** (ver la
 sección "Cómo funciona todo esto" más abajo). Una vez cargada esa URL,
-queda guardada en el teléfono y la comparten las dos apps — si instalás
-la segunda después, no te la vuelve a pedir.
+queda guardada en el teléfono.
+
+**Informes**, desde esta actualización, pide **usuario y contraseña** para
+entrar (ver "Login y roles" más abajo). Una vez logueado, si además tiene
+que mostrar la parte de Producción, la primera vez también va a pedir esa
+misma URL de Apps Script de Producción — se guarda igual que en Carga, una
+sola vez por teléfono.
 
 ## Cómo funciona todo esto (Google Sheets + Apps Script)
 
@@ -206,17 +217,69 @@ hay ninguna otra app ni servicio intermedio involucrado.
   menos un bigbag cargado (no un calendario laboral fijo de lunes a
   viernes), porque acá se produce de noche y algunos fines de semana
   también.
-- Las dos apps hablan con la planilla a través de una "app web" de Google
-  Apps Script (un pequeño backend, ya armado y funcionando).
-- Si alguna vez necesitás la URL de esa app web de nuevo (por ejemplo para
-  instalarla en un teléfono nuevo), la conseguís abriendo la planilla →
-  **Extensiones → Apps Script → Implementar → Administrar
-  implementaciones**.
+- Las dos apps hablan con la planilla "Gestión de Producción" a través de
+  una "app web" de Google Apps Script (un pequeño backend, ya armado y
+  funcionando). Desde esta actualización hay, además, una **segunda**
+  planilla y un **segundo** backend separado ("Gestión Comercial") que solo
+  se ocupa del login y los roles de Informes — ver "Login y roles" más
+  abajo.
+- Si alguna vez necesitás la URL de alguna de esas dos apps web de nuevo
+  (por ejemplo para instalar Carga/Informes en un teléfono nuevo), la
+  conseguís abriendo la planilla correspondiente → **Extensiones → Apps
+  Script → Implementar → Administrar implementaciones**.
 - Desde Informes, tocando "Resultado Micro / Observaciones" en el detalle
   de un bigbag, se puede editar ese resultado — el cambio se guarda
   directamente en la planilla, y si no hay señal se guarda en el teléfono
   y se sube solo cuando vuelve la conexión (mismo mecanismo que usa Carga
   para no perder datos sin señal).
+
+## Login y roles (solo Informes)
+
+Desde esta actualización, Informes se divide en dos secciones:
+
+- **Producción**: todo lo que ya existía (Turno, Lote, Por Calidad, Detalle
+  por BigBag, Producción).
+- **Comercial**: exportación, precios, ventas y documentos (contratos,
+  análisis, certificados). Por ahora está en construcción — se va a ir
+  completando en próximas actualizaciones.
+
+Para entrar hace falta usuario y contraseña. Según el **rol** que tenga
+cada usuario, ve una sección u otra:
+
+- **produccion**: ve solo la sección Producción.
+- **comercial**: ve solo la sección Comercial.
+- **admin**: ve las dos, con un selector arriba de todo para pasar de una a
+  la otra sin volver a loguearse.
+
+Esto vive en una planilla aparte, **"Gestión Comercial"**, con dos hojas:
+
+- **Usuarios**: Nombre, Usuario, Contraseña, Rol (`produccion` / `comercial`
+  / `admin`, en minúsculas y sin tilde), Activo (`SI` / `NO`).
+- **Sesiones**: se completa sola, no hay que tocarla — ahí quedan
+  guardados los inicios de sesión activos.
+
+### Agregar, editar o dar de baja gente vos mismo
+
+No hace falta que me pidas nada — se edita directo en la hoja **Usuarios**
+de la planilla "Gestión Comercial":
+
+- **Agregar a alguien**: una fila nueva, con Nombre, Usuario, Contraseña,
+  Rol y Activo = `SI`.
+- **Sacarle el acceso a alguien**: cambiarle Activo a `NO` (no hace falta
+  borrar la fila — así queda el historial de quién existió).
+- **Cambiarle la contraseña o el rol a alguien**: editar esa celda
+  directamente.
+
+El cambio aplica la próxima vez que esa persona inicie sesión (una sesión
+ya iniciada sigue activa hasta que cierre sesión sola o pase un tiempo).
+
+### Nota de seguridad
+
+Igual que la contraseña de bigbags no se guarda con ningún cifrado
+especial (por simplicidad, para que sea fácil de editar a mano), la
+contraseña de Usuarios tampoco. Por eso conviene elegir contraseñas que no
+se usen en otro lado, y dar de baja (Activo = `NO`) a cualquiera que deje
+de necesitar acceso.
 
 ## Cómo agregar un campo/columna nuevo más adelante
 
