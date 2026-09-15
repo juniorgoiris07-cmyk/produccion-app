@@ -41,6 +41,12 @@
     --ink-2:          #000000;
     --shadow-sm:      0 1px 2px rgba(20,20,15,0.05), 0 1px 4px rgba(20,20,15,0.04);
     --shadow-md:      0 8px 24px rgba(20,20,15,0.08), 0 2px 6px rgba(20,20,15,0.05);
+    /* Un color propio por Calidad, para poder distinguirlas de un vistazo
+       (cuadro, punto y nombre) sin depender solo de leer el texto. */
+    --cal-organico:     #3f7d3a;
+    --cal-organico-bnn: #0e8a83;
+    --cal-ue:           #2f5fd0;
+    --cal-row:          #9b3fb8;
   }
   *{box-sizing:border-box;}
   body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--surface-2);color:var(--text-primary);}
@@ -230,17 +236,31 @@
   .field label .hint{font-weight:600;color:var(--text-muted);font-size:11px;margin-left:4px;}
 
   .calidad-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px;}
-  .calidad-card{appearance:none;font-family:inherit;background:var(--card);border:1px solid var(--gridline);border-radius:10px;padding:14px;cursor:pointer;text-align:left;transition:box-shadow .2s ease,border-color .2s ease,transform .15s ease;box-shadow:var(--shadow-sm);animation:cardIn .35s ease both;}
-  .calidad-card:hover{border-color:var(--series-1);box-shadow:var(--shadow-md);transform:translateY(-2px);}
+  .calidad-card{appearance:none;font-family:inherit;background:var(--card);border:1px solid var(--gridline);border-left:4px solid var(--gridline);border-radius:10px;padding:14px;cursor:pointer;text-align:left;transition:box-shadow .2s ease,border-color .2s ease,transform .15s ease;box-shadow:var(--shadow-sm);animation:cardIn .35s ease both;}
+  .calidad-card:hover{box-shadow:var(--shadow-md);transform:translateY(-2px);}
   .calidad-card:active{transform:translateY(0) scale(.98);}
-  .calidad-card .cc-nombre{font-size:12.5px;font-weight:700;color:var(--text-secondary);margin-bottom:8px;}
+  .calidad-card .cc-nombre{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:800;color:var(--text-secondary);margin-bottom:8px;}
+  .calidad-card .cc-nombre::before{content:'';width:8px;height:8px;border-radius:50%;background:currentColor;flex-shrink:0;}
   .calidad-card .cc-total{font-size:20px;font-weight:800;color:var(--text-primary);letter-spacing:-.01em;margin-bottom:8px;}
   .calidad-card .cc-sub{display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);font-weight:600;margin-top:3px;}
   .calidad-card .cc-sub b{color:var(--text-secondary);}
+  .calidad-card[data-calidad="Orgánico"]{border-left-color:var(--cal-organico);}
+  .calidad-card[data-calidad="Orgánico"] .cc-nombre{color:var(--cal-organico);}
+  .calidad-card[data-calidad="Orgánico BNN"]{border-left-color:var(--cal-organico-bnn);}
+  .calidad-card[data-calidad="Orgánico BNN"] .cc-nombre{color:var(--cal-organico-bnn);}
+  .calidad-card[data-calidad="Convencional UE"]{border-left-color:var(--cal-ue);}
+  .calidad-card[data-calidad="Convencional UE"] .cc-nombre{color:var(--cal-ue);}
+  .calidad-card[data-calidad="Convencional ROW"]{border-left-color:var(--cal-row);}
+  .calidad-card[data-calidad="Convencional ROW"] .cc-nombre{color:var(--cal-row);}
   .calidad-sin-clasificar{font-size:12px;color:var(--text-muted);padding:12px 2px 0;text-align:center;line-height:1.5;}
 
   .calidad-volver{appearance:none;font-family:inherit;display:inline-flex;align-items:center;gap:6px;border:none;background:none;color:var(--series-1-ink);font-size:13px;font-weight:700;cursor:pointer;padding:4px 0;margin-bottom:12px;}
-  .calidad-detalle-nombre{font-size:18px;font-weight:800;margin-bottom:10px;letter-spacing:-.01em;}
+  .calidad-detalle-nombre{display:flex;align-items:center;gap:9px;font-size:18px;font-weight:800;margin-bottom:10px;letter-spacing:-.01em;}
+  .calidad-detalle-nombre::before{content:'';width:13px;height:13px;border-radius:50%;background:currentColor;flex-shrink:0;}
+  .calidad-detalle-nombre[data-calidad="Orgánico"]{color:var(--cal-organico);}
+  .calidad-detalle-nombre[data-calidad="Orgánico BNN"]{color:var(--cal-organico-bnn);}
+  .calidad-detalle-nombre[data-calidad="Convencional UE"]{color:var(--cal-ue);}
+  .calidad-detalle-nombre[data-calidad="Convencional ROW"]{color:var(--cal-row);}
   .calidad-stats-row{display:flex;gap:10px;margin-bottom:16px;}
   .calidad-stat-box{flex:1 1 0;background:var(--surface-2);border:1px solid var(--gridline);border-radius:10px;padding:10px 8px;text-align:center;}
   .calidad-stat-box .cs-label{font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.03em;margin-bottom:4px;}
@@ -1329,7 +1349,7 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Volver a Calidades
       </button>
-      <div class="calidad-detalle-nombre">${escHtml_(nombre)}</div>
+      <div class="calidad-detalle-nombre" data-calidad="${escHtml_(nombre)}">${escHtml_(nombre)}</div>
       <div class="calidad-stats-row">
         <div class="calidad-stat-box"><div class="cs-label">Total</div><div class="cs-val">${formatTon(total)}</div></div>
         <div class="calidad-stat-box"><div class="cs-label">Asignado</div><div class="cs-val">${formatTon(asignado)}</div></div>
