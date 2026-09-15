@@ -129,10 +129,15 @@ hay ninguna otra app ni servicio intermedio involucrado.
 - La planilla se llama **"Gestión de Producción"** y tiene una hoja
   llamada **"Cargas"** con las columnas: Fecha, Hora, Turno, Producto,
   Lote, BB N°, Pureza, Temperatura ambiente, Temperatura del grano,
-  Humedad del grano, Micro, Encargado, Observaciones (la columna ID de la
-  izquierda se completa sola, no hay que tocarla). Cada fila es UN bigbag
-  individual, no un lote entero — un lote grande simplemente tiene varias
-  filas con el mismo N° de Lote.
+  Humedad del grano, Micro, Encargado, Observaciones, Calidad (la columna
+  ID de la izquierda se completa sola, no hay que tocarla). Cada fila es UN
+  bigbag individual, no un lote entero — un lote grande simplemente tiene
+  varias filas con el mismo N° de Lote.
+- Además hay una segunda hoja, **"Asignaciones"**, que se crea sola la
+  primera vez que se asigna un cliente desde Informes (no hace falta
+  crearla a mano). Guarda un registro por cada asignación: Fecha, Calidad,
+  Cliente, Toneladas, Encargado, Observaciones — es la única parte de la
+  planilla que toca la nueva vista "Por Calidad" (ver más abajo).
 - **Carga** es la forma normal de agregar cada bigbag: un formulario que
   sugiere solo Fecha, Hora, Turno y el próximo N° de BigBag (según lo
   último cargado), y al tocar "Registrar bigbag" agrega la fila directo en
@@ -140,7 +145,15 @@ hay ninguna otra app ni servicio intermedio involucrado.
   se sube solo cuando vuelve la conexión (nunca se pierde un dato por
   falta de señal). También se puede seguir cargando filas a mano
   directamente en la planilla, igual que antes — las dos formas conviven
-  sin problema.
+  sin problema. Desde esta actualización, **Calidad** (Orgánico / Orgánico
+  BNN / Convencional UE / Convencional ROW) es un campo obligatorio más del
+  formulario — se elige de una lista, no se tipea. Se mantiene igual que
+  Producto/Lote entre bigbags consecutivos del mismo lote, para no tener
+  que elegirla de nuevo en cada bigbag. Un bigbag cargado antes de esta
+  actualización, o cargado a mano en la planilla sin completar esa
+  columna, aparece en Informes como "sin clasificar" hasta que se corrija
+  — se corrige igual que cualquier otro dato: tocando el bigbag en "Últimos
+  bigbags cargados" y editándolo.
 - Fecha y Hora, cuando se cargan desde la app de Carga, quedan con el
   momento real en que se registró el bigbag (la app sugiere la hora del
   reloj del teléfono, editable). En cambio, si se completan a mano en la
@@ -154,14 +167,34 @@ hay ninguna otra app ni servicio intermedio involucrado.
   bigbag — útil si algo se tipeó mal. La ✕ lo elimina directamente, pide
   confirmación antes y no se puede deshacer. Las dos acciones, si se hacen
   sin señal, quedan guardadas y se aplican solas apenas vuelve la conexión.
-- **Informes** es para consultar lo cargado: lotes, turnos, bloques de 25
-  tons y detalle por bigbag. No hace falta tocar nada para el uso diario,
-  solo abrir la app. Desde Carga no hay forma de llegar a Informes (son
-  apps separadas a propósito); si alguien necesita las dos, instala las
-  dos por separado. Cualquier bigbag que tenga una Observación cargada
-  aparece resaltado (un color suave distinto) en todas las listas donde se
-  ve bigbag por bigbag, para detectarlo de un vistazo sin tener que abrir
-  la ficha de cada uno.
+- **Informes** es para consultar lo cargado: lotes, turnos, calidades y
+  detalle por bigbag. No hace falta tocar nada para el uso diario, solo
+  abrir la app. Desde Carga no hay forma de llegar a Informes (son apps
+  separadas a propósito); si alguien necesita las dos, instala las dos por
+  separado. Cualquier bigbag que tenga una Observación cargada aparece
+  resaltado (un color suave distinto) en todas las listas donde se ve
+  bigbag por bigbag, para detectarlo de un vistazo sin tener que abrir la
+  ficha de cada uno.
+- La vista **"Por Calidad"** de Informes (pensada para la parte comercial)
+  reemplaza a la antigua vista "25 Tons". Muestra 4 cuadros, uno por cada
+  Calidad (Orgánico / Orgánico BNN / Convencional UE / Convencional ROW),
+  con el total de toneladas de cada una. Si hay bigbags sin Calidad
+  clasificada (de antes de esta actualización, o cargados sin completar
+  ese campo), se avisa aparte con una nota debajo de los 4 cuadros — no
+  se pierden, pero tampoco se suman a ninguna de las 4 calidades hasta que
+  se corrijan desde Carga. Tocando un cuadro se entra al detalle de esa
+  calidad: arriba, Total / Asignado / Libre (Asignado es la suma de lo que
+  ya se le reservó a clientes; Libre es lo que queda); un formulario para
+  asignarle una cantidad de toneladas a un cliente (el nombre de cliente
+  tiene autocompletado con los que ya se cargaron antes, pero se puede
+  escribir cualquiera — no hay una lista cerrada de clientes); la lista de
+  asignaciones ya hechas en esa calidad, cada una con un botón para
+  quitarla (libera esas toneladas de vuelta); y, más abajo, los bloques de
+  25 tons pero filtrados a solo los bigbags de esa calidad (mismo formato
+  que la vista anterior, con el mismo detalle al tocar un bloque). Asignar
+  un cliente no reparte bigbags puntuales — es un descuento de tonelaje
+  sobre el total de esa calidad, así que no hace falta elegir bigbags uno
+  por uno.
 - La vista **"Producción"** de Informes muestra el total producido (en
   toneladas) mes a mes. Arriba hay un único menú desplegable "Período" con
   opciones conocidas: Este mes (el que abre por defecto), Mes anterior,
