@@ -1416,9 +1416,21 @@
     const btn = document.getElementById('asig-btn');
     btn.disabled = true; btn.textContent = 'Guardando...';
     try{
-      await crearAsignacionRemota({ calidad, cliente, toneladas, obs });
+      const resultado = await crearAsignacionRemota({ calidad, cliente, toneladas, obs });
+      // Se agrega directo a la lista en memoria y se re-renderiza al toque
+      // (mismo criterio que usa guardarEdicionMicro con Micro/Observaciones,
+      // o crearCargaRemota en la app de Carga): esperar un recargarDatos()
+      // acá significaba un segundo pedido de red completo solo para volver
+      // a traer algo que ya sabemos que se guardó bien, y en la práctica esa
+      // vuelta a veces tardaba o traía la respuesta vieja — quedaba la
+      // pantalla sin actualizarse hasta tocar "Actualizar" a mano.
+      TODAS_LAS_ASIGNACIONES.push({
+        id: resultado.id,
+        fecha: new Date().toISOString().slice(0,10),
+        calidad, cliente, toneladas, encargado: '', obs
+      });
       showToast('Cliente asignado');
-      await recargarDatos();
+      renderLotesGrid(TODAS_LAS_CARGAS);
     }catch(ex){
       err.textContent = 'No se pudo guardar: ' + ex.message;
       err.style.display = 'block';
@@ -1430,8 +1442,9 @@
     if(!confirm('¿Quitar esta asignación? Las toneladas vuelven a quedar disponibles.')) return;
     try{
       await eliminarAsignacionRemota(id);
+      TODAS_LAS_ASIGNACIONES = TODAS_LAS_ASIGNACIONES.filter(a => a.id !== id);
       showToast('Asignación eliminada');
-      await recargarDatos();
+      renderLotesGrid(TODAS_LAS_CARGAS);
     }catch(ex){
       showToast('No se pudo eliminar: ' + ex.message, true);
     }
