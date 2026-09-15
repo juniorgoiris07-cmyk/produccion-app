@@ -213,6 +213,16 @@
             </div>
           </div>
           <div class="field">
+            <label>Calidad</label>
+            <select id="c-calidad" required>
+              <option value="">— Seleccionar —</option>
+              <option value="Orgánico">Orgánico</option>
+              <option value="Orgánico BNN">Orgánico BNN</option>
+              <option value="Convencional UE">Convencional UE</option>
+              <option value="Convencional ROW">Convencional ROW</option>
+            </select>
+          </div>
+          <div class="field">
             <label>N° de BigBag <span class="hint">Sugerido</span></label>
             <input type="number" id="c-bb" min="1" step="1" required>
           </div>
@@ -304,6 +314,16 @@
           <label>Lote</label>
           <input type="text" id="e-lote" list="lista-lotes" autocomplete="off" required>
         </div>
+      </div>
+      <div class="field">
+        <label>Calidad</label>
+        <select id="e-calidad">
+          <option value="">— Sin clasificar —</option>
+          <option value="Orgánico">Orgánico</option>
+          <option value="Orgánico BNN">Orgánico BNN</option>
+          <option value="Convencional UE">Convencional UE</option>
+          <option value="Convencional ROW">Convencional ROW</option>
+        </select>
       </div>
       <div class="field">
         <label>N° de BigBag</label>
@@ -710,6 +730,7 @@
     llenarCampoEdicion_('e-turno', c.turno || 'DIA');
     llenarCampoEdicion_('e-producto', c.producto);
     llenarCampoEdicion_('e-lote', c.lote);
+    llenarCampoEdicion_('e-calidad', c.calidad || '');
     llenarCampoEdicion_('e-bb', c.bb);
     llenarCampoEdicion_('e-pureza', c.pureza);
     llenarCampoEdicion_('e-humedad', c.humedadGrano);
@@ -740,6 +761,7 @@
       turno: document.getElementById('e-turno').value,
       producto: document.getElementById('e-producto').value.trim(),
       lote: document.getElementById('e-lote').value.trim(),
+      calidad: document.getElementById('e-calidad').value,
       bb: num('e-bb'),
       pureza: num('e-pureza'),
       temperaturaAmbiente: num('e-temp-ambiente'),
@@ -902,6 +924,7 @@
       turno: document.getElementById('c-turno').value,
       producto: document.getElementById('c-producto').value.trim(),
       lote: document.getElementById('c-lote').value.trim(),
+      calidad: document.getElementById('c-calidad').value,
       bb: num('c-bb'),
       pureza: num('c-pureza'),
       temperaturaAmbiente: num('c-temp-ambiente'),
@@ -937,6 +960,11 @@
     const fields = leerCampos_();
     if(!fields.lote){
       err.textContent = 'Falta el Lote.';
+      err.style.display = 'block';
+      return;
+    }
+    if(!fields.calidad){
+      err.textContent = 'Falta la Calidad.';
       err.style.display = 'block';
       return;
     }
