@@ -112,6 +112,7 @@
   .vista-btn{appearance:none;font-family:inherit;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:9px 16px;border:1px solid var(--gridline);border-radius:20px;background:var(--card);color:var(--text-secondary);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;transition:background-color .15s ease,border-color .15s ease,color .15s ease;box-shadow:var(--shadow-sm);}
   .vista-btn:hover{border-color:var(--series-1);color:var(--text-primary);}
   .vista-btn.activa{background:var(--series-1);border-color:var(--series-1);color:#fff;}
+  .seccion-switcher{display:flex;gap:6px;padding:12px 16px 0;}
 
   .lotes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px;}
   .bloques-list{display:flex;flex-direction:column;gap:10px;}
@@ -283,6 +284,41 @@
 <body>
 <div class="app-shell">
 
+  <!-- ============ CARGANDO (mientras se verifica la sesión) ============ -->
+  <div id="boot-loading" class="login-wrap">
+    <div class="login-card card" style="text-align:center;">
+      <img src="icons/logo-header.png" alt="Progresso NH S.A." class="login-logo" style="margin:0 auto 18px;">
+      <p style="color:var(--text-secondary);font-size:13px;margin:0;">Cargando…</p>
+    </div>
+  </div>
+
+  <!-- ============ LOGIN ============ -->
+  <div id="login-screen" class="login-wrap hidden">
+    <div class="login-card card">
+      <img src="icons/logo-header.png" alt="Progresso NH S.A." class="login-logo">
+      <h1>Iniciar sesión</h1>
+      <p>Ingresá tu usuario y contraseña.</p>
+      <div class="error-msg" id="login-error"></div>
+      <form id="login-form">
+        <div class="field">
+          <label>Usuario</label>
+          <input type="text" id="l-usuario" autocomplete="username" autocapitalize="off" required>
+        </div>
+        <div class="field">
+          <label>Contraseña</label>
+          <input type="password" id="l-contrasena" autocomplete="current-password" required>
+        </div>
+        <button type="submit" class="submit-btn" id="login-btn">Ingresar</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============ SWITCHER (solo admin, alterna entre Producción/Comercial) ============ -->
+  <div class="seccion-switcher hidden" id="seccion-switcher">
+    <button type="button" class="vista-btn seccion-btn" data-seccion="produccion">Producción</button>
+    <button type="button" class="vista-btn seccion-btn" data-seccion="comercial">Comercial</button>
+  </div>
+
   <!-- ============ SETUP ============ -->
   <div id="setup-screen" class="login-wrap hidden">
     <div class="login-card card">
@@ -320,12 +356,17 @@
             <p>Elegí cómo ver los datos cargados en la planilla</p>
           </div>
         </div>
-        <button class="settings-btn" onclick="resetWebAppUrl()" title="Configuración" aria-label="Configuración">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 15a3 3 0 100-6 3 3 0 000 6z" stroke="white" stroke-width="2"/>
-            <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z" stroke="white" stroke-width="1.6"/>
-          </svg>
-        </button>
+        <div style="display:flex;gap:8px;flex-shrink:0;">
+          <button class="settings-btn" onclick="cerrarSesion()" title="Cerrar sesión" aria-label="Cerrar sesión">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 17l5-5-5-5M21 12H9" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button class="settings-btn" onclick="resetWebAppUrl()" title="Configuración" aria-label="Configuración">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 15a3 3 0 100-6 3 3 0 000 6z" stroke="white" stroke-width="2"/>
+              <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z" stroke="white" stroke-width="1.6"/>
+            </svg>
+          </button>
+        </div>
       </div>
     </header>
 
@@ -406,6 +447,32 @@
     </section>
   </div>
 
+  <!-- ============ COMERCIAL ============ -->
+  <div id="comercial-screen" class="hidden">
+    <header class="appbar">
+      <div class="appbar-top">
+        <div class="appbar-title">
+          <span class="appbar-icon">
+            <img src="icons/logo-header.png" alt="Progresso NH S.A.">
+          </span>
+          <div>
+            <h1>Comercial</h1>
+            <p id="comercial-subtitle">Exportación, precios, ventas y documentos</p>
+          </div>
+        </div>
+        <button class="settings-btn" onclick="cerrarSesion()" title="Cerrar sesión" aria-label="Cerrar sesión">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 17l5-5-5-5M21 12H9" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </header>
+    <section>
+      <div class="card" style="text-align:center;padding:40px 18px;">
+        <p style="color:var(--text-secondary);font-size:14px;margin:0 0 6px;">Esta sección está en construcción.</p>
+        <p style="color:var(--text-muted);font-size:12.5px;margin:0;">Pronto vas a poder cargar acá exportaciones, precios, información de ventas y documentos (contratos, análisis, certificados).</p>
+      </div>
+    </section>
+  </div>
+
 </div>
 <div class="toast" id="toast"></div>
 
@@ -417,6 +484,11 @@
 </div>
 
 <script>
+  // App web del backend Comercial (login/roles) — es un backend separado
+  // del de Producción, así que esta URL siempre es la misma, no hace falta
+  // configurarla por dispositivo como la de Producción.
+  const COMERCIAL_LOGIN_URL = 'https://script.google.com/macros/s/AKfycbwNwB0khkuoF70z6vNMOOZ91PvOui-w5f8zle78LPNlzvH35hCAQuzji_gDDiJOMLbZ/exec';
+
   const MICRO_CONFIG = ['Apto', 'No apto', 'Pendiente'];
   let TODAS_LAS_CARGAS = [];
   let TODAS_LAS_ASIGNACIONES = [];
@@ -509,7 +581,7 @@
 
   // ---------- flujo de pantallas ----------
   function mostrarPantalla(id){
-    ['setup-screen','app-screen'].forEach(x=>{
+    ['boot-loading','login-screen','setup-screen','app-screen','comercial-screen'].forEach(x=>{
       document.getElementById(x).classList.toggle('hidden', x!==id);
     });
   }
@@ -557,7 +629,12 @@
 
   function cambiarVista(v){
     vistaActual = v;
-    document.querySelectorAll('.vista-btn').forEach(b=> b.classList.toggle('activa', b.dataset.vista===v));
+    // Ojo: el selector va con el #vista-selector adelante (no ".vista-btn"
+    // a secas) porque los botones del switcher Producción/Comercial
+    // reusan la misma clase "vista-btn" para el estilo, pero no tienen
+    // data-vista — si el selector fuera más amplio, cada cambio de vista
+    // les borraría el estado "activa" a esos botones también.
+    document.querySelectorAll('#vista-selector .vista-btn').forEach(b=> b.classList.toggle('activa', b.dataset.vista===v));
     document.getElementById('turno-summary').classList.toggle('hidden', v!=='turno');
     document.getElementById('produccion-summary').classList.toggle('hidden', v!=='produccion');
     document.getElementById('vista-calidad').classList.toggle('hidden', v!=='calidad');
@@ -567,13 +644,14 @@
     renderLotesGrid(TODAS_LAS_CARGAS);
   }
 
-  document.querySelectorAll('.vista-btn').forEach(b=>{
+  document.querySelectorAll('#vista-selector .vista-btn').forEach(b=>{
     b.addEventListener('click', ()=> cambiarVista(b.dataset.vista));
   });
 
-  // El estado inicial (cambiarVista(vistaActual)) se dispara al final del
-  // script, junto con iniciar() — recién ahí están definidas todas las
-  // funciones/constantes de renderizado que usa.
+  // El estado inicial (cambiarVista(vistaActual)) se dispara recién cuando
+  // el login/sesión confirma que hay que mostrar la sección de Producción
+  // (ver irASeccion(), al final del script) — recién ahí están definidas
+  // todas las funciones/constantes de renderizado que usa.
 
   document.getElementById('setup-form').addEventListener('submit', async function(e){
     e.preventDefault();
@@ -1854,8 +1932,137 @@
     });
   }
 
-  cambiarVista(vistaActual); // deja la pantalla en el estado inicial correcto
-  iniciar();
+  // ---------- login / sesión / enrutado por rol ----------
+  // Este bloque es lo único nuevo de la parte de "login con roles": todo lo
+  // de arriba (Producción) sigue igual que siempre, solo que ahora no
+  // arranca solo — arranca cuando enrutarPorRol()/irASeccion() lo llaman,
+  // después de un login válido.
+  const SESION_KEY = 'gp_sesion';
+  function getSesion(){ try { return JSON.parse(localStorage.getItem(SESION_KEY)); } catch(e){ return null; } }
+  function setSesion(s){ localStorage.setItem(SESION_KEY, JSON.stringify(s)); }
+  function clearSesion(){ localStorage.removeItem(SESION_KEY); }
+
+  async function verificarSesionRemota(token){
+    const res = await fetch(COMERCIAL_LOGIN_URL + '?action=verificarSesion&token=' + encodeURIComponent(token));
+    if(!res.ok) throw new Error(`Error ${res.status}`);
+    return res.json();
+  }
+
+  async function loginRemoto(usuario, contrasena){
+    const res = await fetch(COMERCIAL_LOGIN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'login', usuario, contrasena })
+    });
+    if(!res.ok) throw new Error(`Error ${res.status}`);
+    return res.json();
+  }
+
+  async function logoutRemoto(token){
+    try{
+      await fetch(COMERCIAL_LOGIN_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'logout', token })
+      });
+    }catch(ex){
+      // si falla (sin conexión, etc.) no importa — la sesión ya se borró
+      // localmente, así que en este dispositivo ya quedó cerrada.
+    }
+  }
+
+  function mostrarSeccionSwitcher(){
+    const s = getSesion();
+    const sw = document.getElementById('seccion-switcher');
+    sw.classList.toggle('hidden', !s || s.rol !== 'admin');
+  }
+
+  // Deja el formulario de login limpio y sin mensajes de error viejos, para
+  // la próxima vez que alguien tenga que iniciar sesión en este aparato.
+  function limpiarFormularioLogin(){
+    const err = document.getElementById('login-error');
+    err.style.display = 'none';
+    document.getElementById('l-usuario').value = '';
+    document.getElementById('l-contrasena').value = '';
+    const btn = document.getElementById('login-btn');
+    btn.disabled = false; btn.textContent = 'Ingresar';
+  }
+
+  function cerrarSesion(){
+    const s = getSesion();
+    clearSesion();
+    if(s && s.token) logoutRemoto(s.token);
+    document.getElementById('seccion-switcher').classList.add('hidden');
+    limpiarFormularioLogin();
+    mostrarPantalla('login-screen');
+  }
+
+  // Muestra la sección de Producción o la de Comercial (según a cuál se
+  // quiera ir) — la usan tanto el enrutado automático después del login
+  // como los botones del switcher (que solo ve Admin, para poder pasar de
+  // una sección a la otra sin tener que volver a loguearse).
+  function irASeccion(seccion){
+    mostrarSeccionSwitcher();
+    document.querySelectorAll('.seccion-btn').forEach(b=> b.classList.toggle('activa', b.dataset.seccion===seccion));
+    if(seccion === 'comercial'){
+      mostrarPantalla('comercial-screen');
+      const s = getSesion();
+      const el = document.getElementById('comercial-subtitle');
+      if(el && s) el.textContent = 'Hola, ' + (s.nombre || s.usuario) + '. Esta sección todavía se está construyendo.';
+    } else {
+      cambiarVista(vistaActual); // deja la pantalla en el estado inicial correcto
+      iniciar();
+    }
+  }
+
+  function enrutarPorRol(rol){
+    irASeccion(rol === 'comercial' ? 'comercial' : 'produccion');
+  }
+
+  document.getElementById('login-form').addEventListener('submit', async function(e){
+    e.preventDefault();
+    const err = document.getElementById('login-error');
+    err.style.display = 'none';
+    const btn = document.getElementById('login-btn');
+    const usuario = document.getElementById('l-usuario').value.trim();
+    const contrasena = document.getElementById('l-contrasena').value;
+    if(!usuario || !contrasena) return;
+    btn.disabled = true; btn.textContent = 'Ingresando...';
+    try{
+      const data = await loginRemoto(usuario, contrasena);
+      if(!data.ok) throw new Error(data.error || 'Usuario o contraseña incorrectos');
+      setSesion({ token: data.token, rol: data.rol, nombre: data.nombre, usuario: data.usuario });
+      enrutarPorRol(data.rol);
+    }catch(ex){
+      btn.disabled = false; btn.textContent = 'Ingresar';
+      err.textContent = 'No se pudo iniciar sesión: ' + ex.message;
+      err.style.display = 'block';
+    }
+  });
+
+  document.querySelectorAll('.seccion-btn').forEach(b=>{
+    b.addEventListener('click', ()=> irASeccion(b.dataset.seccion));
+  });
+
+  // ---------- arranque ----------
+  // Si ya había una sesión guardada en este aparato, la valida contra el
+  // backend Comercial antes de mostrar nada de Producción/Comercial — así
+  // una sesión vencida o cerrada desde otro lado no deja pasar. Si no hay
+  // señal en ese momento, confía en la sesión guardada (para no dejar a
+  // nadie sin poder trabajar offline solo porque no hay señal al abrir la
+  // app).
+  (async function arrancarConSesion(){
+    const s = getSesion();
+    if(!s || !s.token){ mostrarPantalla('login-screen'); return; }
+    try{
+      const data = await verificarSesionRemota(s.token);
+      if(!data.ok){ clearSesion(); mostrarPantalla('login-screen'); return; }
+      setSesion({ token: s.token, rol: data.rol, nombre: data.nombre, usuario: data.usuario });
+      enrutarPorRol(data.rol);
+    }catch(ex){
+      enrutarPorRol(s.rol);
+    }
+  })();
 </script>
 </body>
 </html>
