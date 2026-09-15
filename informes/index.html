@@ -114,6 +114,13 @@
   .vista-btn.activa{background:var(--series-1);border-color:var(--series-1);color:#fff;}
   .seccion-switcher{display:flex;gap:6px;padding:12px 16px 0;}
 
+  .vista-menu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px;margin-bottom:14px;}
+  .vista-menu-card{appearance:none;font-family:inherit;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:var(--card);border:1px solid var(--gridline);border-radius:14px;padding:24px 12px;cursor:pointer;text-align:center;transition:box-shadow .2s ease,border-color .2s ease,transform .15s ease;box-shadow:var(--shadow-sm);animation:cardIn .35s ease both;}
+  .vista-menu-card:hover{border-color:var(--series-1);box-shadow:var(--shadow-md);transform:translateY(-2px);}
+  .vista-menu-card:active{transform:translateY(0) scale(.98);}
+  .vista-menu-card .vmc-icon{width:46px;height:46px;border-radius:50%;background:rgba(var(--series-1-rgb),.12);color:var(--series-1-ink);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .vista-menu-card .vmc-label{font-size:13px;font-weight:800;color:var(--text-primary);}
+
   .lotes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px;}
   .bloques-list{display:flex;flex-direction:column;gap:10px;}
   .bloques-list .lote-card{display:flex;align-items:center;flex-wrap:wrap;column-gap:14px;row-gap:6px;}
@@ -373,13 +380,32 @@
     <section>
       <div id="conn-banner" class="conn-banner hidden"></div>
 
-      <div class="vista-selector" id="vista-selector">
-        <button type="button" class="vista-btn" data-vista="turno">Turno</button>
-        <button type="button" class="vista-btn" data-vista="lote">Lote</button>
-        <button type="button" class="vista-btn" data-vista="calidad">Por Calidad</button>
-        <button type="button" class="vista-btn" data-vista="bigbag">Detalle por BigBag</button>
-        <button type="button" class="vista-btn" data-vista="produccion">Producción</button>
+      <div class="vista-menu-grid" id="vista-menu-grid">
+        <button type="button" class="vista-menu-card" data-vista="turno">
+          <span class="vmc-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span class="vmc-label">Turno</span>
+        </button>
+        <button type="button" class="vista-menu-card" data-vista="lote">
+          <span class="vmc-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 3l9 5-9 5-9-5 9-5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 13l9 5 9-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span class="vmc-label">Lote</span>
+        </button>
+        <button type="button" class="vista-menu-card" data-vista="calidad">
+          <span class="vmc-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l7 3.5v6c0 4.5-3 8-7 9.5-4-1.5-7-5-7-9.5v-6L12 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span class="vmc-label">Por Calidad</span>
+        </button>
+        <button type="button" class="vista-menu-card" data-vista="bigbag">
+          <span class="vmc-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span class="vmc-label">Detalle por BigBag</span>
+        </button>
+        <button type="button" class="vista-menu-card" data-vista="produccion">
+          <span class="vmc-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 20V10M12 20V4M20 20v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span class="vmc-label">Producción</span>
+        </button>
       </div>
+      <button type="button" class="calidad-volver hidden" id="vista-volver-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Menú
+      </button>
 
       <div class="turno-summary" id="turno-summary">
         <div class="turno-summary-head">
@@ -622,31 +648,32 @@
     searchInputEl.focus();
   });
 
-  // ---------- selector de vista (Turno / Lote / Bloques de 25 Tons / BigBag) ----------
+  // ---------- selector de vista (Turno / Lote / Por Calidad / BigBag / Producción) ----------
   // vistaActual manda qué panel se ve: solo uno a la vez, para no saturar la
   // pantalla con todo junto (ese era el problema que quería resolver esto).
-  let vistaActual = 'turno';
+  // null = estamos en el "menú" (la grilla de cuadros para elegir a dónde
+  // entrar) — arranca ahí siempre, hay que tocar un cuadro para entrar a un
+  // sector, en vez de abrir directo en "Turno" como antes.
+  let vistaActual = null;
 
   function cambiarVista(v){
     vistaActual = v;
-    // Ojo: el selector va con el #vista-selector adelante (no ".vista-btn"
-    // a secas) porque los botones del switcher Producción/Comercial
-    // reusan la misma clase "vista-btn" para el estilo, pero no tienen
-    // data-vista — si el selector fuera más amplio, cada cambio de vista
-    // les borraría el estado "activa" a esos botones también.
-    document.querySelectorAll('#vista-selector .vista-btn').forEach(b=> b.classList.toggle('activa', b.dataset.vista===v));
+    const enMenu = !v;
+    document.getElementById('vista-menu-grid').classList.toggle('hidden', !enMenu);
+    document.getElementById('vista-volver-btn').classList.toggle('hidden', enMenu);
     document.getElementById('turno-summary').classList.toggle('hidden', v!=='turno');
     document.getElementById('produccion-summary').classList.toggle('hidden', v!=='produccion');
     document.getElementById('vista-calidad').classList.toggle('hidden', v!=='calidad');
-    document.getElementById('panel-datos').classList.toggle('hidden', v==='turno' || v==='produccion' || v==='calidad');
+    document.getElementById('panel-datos').classList.toggle('hidden', enMenu || v==='turno' || v==='produccion' || v==='calidad');
     document.getElementById('vista-lote-grid').classList.toggle('hidden', v!=='lote');
     document.getElementById('vista-bigbag-list').classList.toggle('hidden', v!=='bigbag');
-    renderLotesGrid(TODAS_LAS_CARGAS);
+    if(!enMenu) renderLotesGrid(TODAS_LAS_CARGAS);
   }
 
-  document.querySelectorAll('#vista-selector .vista-btn').forEach(b=>{
+  document.querySelectorAll('.vista-menu-card').forEach(b=>{
     b.addEventListener('click', ()=> cambiarVista(b.dataset.vista));
   });
+  document.getElementById('vista-volver-btn').addEventListener('click', ()=> cambiarVista(null));
 
   // El estado inicial (cambiarVista(vistaActual)) se dispara recién cuando
   // el login/sesión confirma que hay que mostrar la sección de Producción
