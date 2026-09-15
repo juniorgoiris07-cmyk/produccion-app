@@ -360,6 +360,7 @@
           </span>
           <div>
             <h1>Informes de Producción</h1>
+            <p id="produccion-subtitle"></p>
           </div>
         </div>
         <div style="display:flex;gap:8px;flex-shrink:0;">
@@ -2036,6 +2037,9 @@
       const el = document.getElementById('comercial-subtitle');
       if(el && s) el.textContent = 'Hola, ' + (s.nombre || s.usuario);
     } else {
+      const s = getSesion();
+      const el = document.getElementById('produccion-subtitle');
+      if(el && s) el.textContent = 'Hola, ' + (s.nombre || s.usuario);
       cambiarVista(vistaActual); // deja la pantalla en el estado inicial correcto
       iniciar();
     }
