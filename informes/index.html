@@ -519,18 +519,21 @@
       </div>
     </header>
     <section>
-      <div class="toolbar">
-        <div class="grid-meta" id="ventas-meta"></div>
-        <button class="export-btn" onclick="cargarVentas()" id="ventas-refresh-btn">
-          <svg id="ventas-refresh-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M21 12a9 9 0 11-3-6.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            <path d="M21 3v6h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          Actualizar
-        </button>
-        <button class="export-btn primary" onclick="abrirModalVenta(null)">+ Nueva venta</button>
+      <div id="ventas-grid-view">
+        <div class="toolbar">
+          <div class="grid-meta" id="ventas-meta"></div>
+          <button class="export-btn" onclick="cargarVentas()" id="ventas-refresh-btn">
+            <svg id="ventas-refresh-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M21 12a9 9 0 11-3-6.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M21 3v6h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Actualizar
+          </button>
+          <button class="export-btn primary" onclick="mostrarFormVenta_(null)">+ Nueva venta</button>
+        </div>
+        <div class="venta-list" id="ventas-list"></div>
       </div>
-      <div class="venta-list" id="ventas-list"></div>
+      <div class="hidden" id="ventas-detalle-view"></div>
     </section>
   </div>
 
@@ -2068,7 +2071,18 @@
     return tipo === 'Orgánico' ? 'tipo-organico' : 'tipo-convencional';
   }
 
+  // Muestra la lista de ventas (pantalla completa) y oculta el detalle/form,
+  // si estuviera abierto — mismo criterio que volverAGridCalidad_.
+  function volverAListaVentas_(){
+    const grid = document.getElementById('ventas-grid-view');
+    const detalle = document.getElementById('ventas-detalle-view');
+    if(grid) grid.classList.remove('hidden');
+    if(detalle){ detalle.classList.add('hidden'); detalle.innerHTML = ''; }
+    renderVentasList();
+  }
+
   async function cargarVentas(){
+    volverAListaVentas_(); // al entrar a Comercial, siempre arranca en la lista
     const icon = document.getElementById('ventas-refresh-icon');
     const btn = document.getElementById('ventas-refresh-btn');
     if(icon) icon.classList.add('spin');
@@ -2123,39 +2137,51 @@
         </button>`;
     }).join('');
     cont.querySelectorAll('.venta-card').forEach(card=>{
-      card.addEventListener('click', ()=> abrirModalVentaDetalle(ordenadas[Number(card.dataset.idx)]));
+      card.addEventListener('click', ()=> mostrarDetalleVenta_(ordenadas[Number(card.dataset.idx)]));
     });
   }
 
-  function abrirModalVentaDetalle(v){
-    modalVolverA = null; // se abre siempre desde la lista principal
-    const body = document.getElementById('modal-body');
+  // Muestra el detalle de una venta como pantalla propia (reemplaza la
+  // lista, no un popup) — mismo patrón que renderDetalleCalidad_/
+  // abrirModalBloqueGlobal_ usan para "Por Calidad": un "‹ Volver" arriba
+  // y el contenido abajo, en vez de una ventana flotante.
+  function mostrarDetalleVenta_(v){
+    const grid = document.getElementById('ventas-grid-view');
+    const detalle = document.getElementById('ventas-detalle-view');
+    if(!grid || !detalle) return;
+    grid.classList.add('hidden');
+    detalle.classList.remove('hidden');
     const campo = (k,val) => `<div class="modal-field"><span class="k">${k}</span><span class="v">${val}</span></div>`;
     const contratoHtml = v.contratoUrl
       ? `<a href="${escHtml_(v.contratoUrl)}" target="_blank" rel="noopener">${escHtml_(v.contratoNombre || 'Ver contrato')}</a>`
       : 'Sin cargar';
-    body.innerHTML = `
-      <div class="modal-title">${escHtml_(v.cliente)}</div>
-      <div class="modal-subtitle">Venta del ${fechaVisual(v.fecha)}</div>
-      <div class="venta-badges" style="margin-bottom:12px;">
-        ${v.tipoProducto ? `<span class="badge ${ventaTipoBadgeClass_(v.tipoProducto)}">${escHtml_(v.tipoProducto)}</span>` : ''}
-        <span class="badge ${ventaEstadoBadgeClass_(v.estado)}">${escHtml_(v.estado || 'Pendiente')}</span>
+    detalle.innerHTML = `
+      <button type="button" class="calidad-volver" id="venta-detalle-volver-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Volver a Ventas
+      </button>
+      <div class="card">
+        <div class="modal-title">${escHtml_(v.cliente)}</div>
+        <div class="modal-subtitle">Venta del ${fechaVisual(v.fecha)}</div>
+        <div class="venta-badges" style="margin-bottom:12px;">
+          ${v.tipoProducto ? `<span class="badge ${ventaTipoBadgeClass_(v.tipoProducto)}">${escHtml_(v.tipoProducto)}</span>` : ''}
+          <span class="badge ${ventaEstadoBadgeClass_(v.estado)}">${escHtml_(v.estado || 'Pendiente')}</span>
+        </div>
+        ${campo('Toneladas', (v.toneladas!=null && v.toneladas!=='') ? formatTon(Number(v.toneladas)) : 'Sin definir')}
+        ${campo('Tipo de bolsa', v.tipoBolsa || '—')}
+        ${campo('Pallet o piso', v.palletOPiso || '—')}
+        ${campo('Lote', v.lote || '—')}
+        ${campo('Destino', v.destino || '—')}
+        ${campo('Encargado', v.encargado || '—')}
+        ${campo('Contrato', contratoHtml)}
+        ${campo('Observaciones', v.obs || '—')}
+        <button type="button" class="submit-btn" id="venta-edit-btn" style="margin-top:14px;">Editar venta</button>
+        <button type="button" class="submit-btn" id="venta-delete-btn" style="background:var(--critical-bg);color:var(--critical);margin-top:8px;">Eliminar venta</button>
       </div>
-      ${campo('Toneladas', (v.toneladas!=null && v.toneladas!=='') ? formatTon(Number(v.toneladas)) : 'Sin definir')}
-      ${campo('Tipo de bolsa', v.tipoBolsa || '—')}
-      ${campo('Pallet o piso', v.palletOPiso || '—')}
-      ${campo('Lote', v.lote || '—')}
-      ${campo('Destino', v.destino || '—')}
-      ${campo('Encargado', v.encargado || '—')}
-      ${campo('Contrato', contratoHtml)}
-      ${campo('Observaciones', v.obs || '—')}
-      <button type="button" class="submit-btn" id="venta-edit-btn" style="margin-top:14px;">Editar venta</button>
-      <button type="button" class="submit-btn" id="venta-delete-btn" style="background:var(--critical-bg);color:var(--critical);margin-top:8px;">Eliminar venta</button>
     `;
-    document.getElementById('venta-edit-btn').addEventListener('click', ()=> abrirModalVenta(v));
+    document.getElementById('venta-detalle-volver-btn').addEventListener('click', volverAListaVentas_);
+    document.getElementById('venta-edit-btn').addEventListener('click', ()=> mostrarFormVenta_(v));
     document.getElementById('venta-delete-btn').addEventListener('click', ()=> eliminarVentaConfirm_(v));
-    document.getElementById('lote-modal').classList.add('visible');
-    actualizarBotonModalCerrar_();
   }
 
   async function eliminarVentaConfirm_(v){
@@ -2163,19 +2189,24 @@
     try{
       await eliminarVentaRemoto(v.id);
       TODAS_LAS_VENTAS = TODAS_LAS_VENTAS.filter(x => x.id !== v.id);
-      cerrarModalDelTodo();
-      renderVentasList();
+      volverAListaVentas_();
       showToast('Venta eliminada');
     }catch(ex){
       showToast('No se pudo eliminar: ' + ex.message, true);
     }
   }
 
-  function abrirModalVenta(ventaExistente){
+  // Formulario de alta/edición de una venta, también como pantalla propia
+  // (reemplaza la lista o el detalle, no un popup).
+  function mostrarFormVenta_(ventaExistente){
     const esNueva = !ventaExistente;
     ventaArchivoContratoBase64_ = null;
     ventaArchivoContratoNombre_ = null;
-    const body = document.getElementById('modal-body');
+    const grid = document.getElementById('ventas-grid-view');
+    const detalle = document.getElementById('ventas-detalle-view');
+    if(!grid || !detalle) return;
+    grid.classList.add('hidden');
+    detalle.classList.remove('hidden');
     const opcionesTipo = ['', ...VENTA_TIPOS_PRODUCTO].map(t=>
       `<option value="${t}" ${(ventaExistente && ventaExistente.tipoProducto===t) ? 'selected':''}>${t || 'Sin definir'}</option>`).join('');
     const opcionesEstado = VENTA_ESTADOS.map(e=>
@@ -2187,7 +2218,12 @@
       ? `<div class="fc-actual"><a href="${escHtml_(ventaExistente.contratoUrl)}" target="_blank" rel="noopener">${escHtml_(ventaExistente.contratoNombre || 'Contrato actual')}</a> — elegí otro archivo para reemplazarlo</div>`
       : '';
 
-    body.innerHTML = `
+    detalle.innerHTML = `
+      <button type="button" class="calidad-volver" id="venta-form-volver-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Volver
+      </button>
+      <div class="card">
       <div class="modal-title">${esNueva ? 'Nueva venta' : 'Editar venta'}</div>
       <div class="field">
         <label>Cliente</label>
@@ -2236,6 +2272,7 @@
       <div class="error-msg" id="v-error"></div>
       <button type="button" class="submit-btn" id="v-guardar-btn">Guardar venta</button>
       <button type="button" class="submit-btn" id="v-cancelar-btn" style="background:var(--surface-2);color:var(--text-primary);margin-top:8px;">Cancelar</button>
+      </div>
     `;
 
     if(ventaExistente){
@@ -2263,14 +2300,12 @@
       }
     });
 
+    const volverDesdeForm = ()=>{
+      if(ventaExistente) mostrarDetalleVenta_(ventaExistente); else volverAListaVentas_();
+    };
     document.getElementById('v-guardar-btn').addEventListener('click', ()=> guardarVenta_(ventaExistente));
-    document.getElementById('v-cancelar-btn').addEventListener('click', ()=>{
-      if(ventaExistente) abrirModalVentaDetalle(ventaExistente); else cerrarModalDelTodo();
-    });
-
-    modalVolverA = ventaExistente ? (()=> abrirModalVentaDetalle(ventaExistente)) : null;
-    document.getElementById('lote-modal').classList.add('visible');
-    actualizarBotonModalCerrar_();
+    document.getElementById('v-cancelar-btn').addEventListener('click', volverDesdeForm);
+    document.getElementById('venta-form-volver-btn').addEventListener('click', volverDesdeForm);
   }
 
   function archivoABase64_(file){
@@ -2329,19 +2364,22 @@
         contratoNombre = resultadoContrato.nombre;
       }
 
-      const ventaActualizada = Object.assign({}, ventaExistente, fields, { id, contratoUrl, contratoNombre });
-
+      let ventaActualizada;
       if(ventaExistente){
+        ventaActualizada = Object.assign({}, ventaExistente, fields, { id, contratoUrl, contratoNombre });
         const idx = TODAS_LAS_VENTAS.findIndex(x => x.id === id);
         if(idx >= 0) TODAS_LAS_VENTAS[idx] = ventaActualizada;
       } else {
-        TODAS_LAS_VENTAS.push(Object.assign({ fecha: new Date().toISOString().slice(0,10), encargado: '' }, ventaActualizada));
+        ventaActualizada = Object.assign({ fecha: new Date().toISOString().slice(0,10), encargado: '' }, fields, { id, contratoUrl, contratoNombre });
+        TODAS_LAS_VENTAS.push(ventaActualizada);
       }
 
       ventaArchivoContratoBase64_ = null;
       ventaArchivoContratoNombre_ = null;
-      cerrarModalDelTodo();
-      renderVentasList();
+      // Después de guardar, se muestra la propia página de detalle de la
+      // venta (no se vuelve a la lista ni se cierra nada) — así se puede
+      // revisar de una lo que quedó guardado.
+      mostrarDetalleVenta_(ventaActualizada);
       showToast(ventaExistente ? 'Venta actualizada' : 'Venta creada');
     }catch(ex){
       btn.disabled = false; btn.textContent = 'Guardar venta';
