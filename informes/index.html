@@ -688,6 +688,22 @@
     return data;
   }
 
+  // Sube UN documento adicional (aparte del contrato) — se llama una vez
+  // por archivo cuando se eligen varios a la vez. El backend lo AGREGA a la
+  // lista existente de esa venta (no la reemplaza) y devuelve la lista
+  // completa ya actualizada.
+  async function subirDocumentoVentaRemoto(id, base64, nombre){
+    const res = await fetch(COMERCIAL_LOGIN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'subirDocumentoVenta', id, documentoBase64: base64, documentoNombre: nombre })
+    });
+    if(!res.ok) throw new Error(`Error ${res.status}`);
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'No se pudo subir el documento.');
+    return data;
+  }
+
   async function actualizarCarga(id, fields){
     const url = getWebAppUrl();
     // Content-Type: text/plain evita que el navegador dispare un preflight
@@ -2062,6 +2078,11 @@
   // necesita el id de una venta que ya existe).
   let ventaArchivoContratoBase64_ = null;
   let ventaArchivoContratoNombre_ = null;
+  // Documentos adicionales (PDF, aparte del contrato) elegidos en el
+  // formulario pero todavía no subidos — se pueden elegir varios de una, y
+  // se acumulan sobre los que la venta ya tuviera (no los reemplazan).
+  // Cada elemento: { base64, nombre }.
+  let ventaArchivosDocumentosNuevos_ = [];
 
   function ventaEstadoBadgeClass_(estado){
     const m = { 'Pendiente':'estado-pendiente', 'Confirmada':'estado-confirmada', 'Entregada':'estado-entregada', 'Cancelada':'estado-cancelada' };
@@ -2173,6 +2194,18 @@
         <iframe src="https://drive.google.com/file/d/${escHtml_(contratoFileId)}/preview" style="width:100%;height:60vh;min-height:320px;border:1px solid var(--gridline);border-radius:10px;background:var(--surface-2);" allow="autoplay" title="Vista previa del contrato"></iframe>
       </div>
     ` : '';
+    // Otros documentos (PDF, además del contrato) — acá solo van como
+    // links para abrir/descargar, sin visor embebido (no hace falta para
+    // estos, a diferencia del contrato).
+    const documentosListHtml = (v.documentos && v.documentos.length)
+      ? v.documentos.map(d => `<div style="margin-top:4px;"><a href="${escHtml_(d.url)}" target="_blank" rel="noopener">${escHtml_(d.nombre || 'Documento')}</a></div>`).join('')
+      : 'Sin documentos';
+    const documentosBlockHtml = `
+      <div class="modal-field" style="flex-direction:column;align-items:flex-start;">
+        <span class="k">Otros documentos</span>
+        <div class="v" style="text-align:left;margin-top:4px;">${documentosListHtml}</div>
+      </div>
+    `;
     detalle.innerHTML = `
       <button type="button" class="calidad-volver" id="venta-detalle-volver-btn">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -2194,6 +2227,7 @@
         ${campo('Contrato', contratoHtml)}
         ${contratoPreviewHtml}
         ${campo('Observaciones', v.obs || '—')}
+        ${documentosBlockHtml}
         <button type="button" class="submit-btn" id="venta-edit-btn" style="margin-top:14px;">Editar venta</button>
         <button type="button" class="submit-btn" id="venta-delete-btn" style="background:var(--critical-bg);color:var(--critical);margin-top:8px;">Eliminar venta</button>
       </div>
@@ -2221,6 +2255,7 @@
     const esNueva = !ventaExistente;
     ventaArchivoContratoBase64_ = null;
     ventaArchivoContratoNombre_ = null;
+    ventaArchivosDocumentosNuevos_ = [];
     const grid = document.getElementById('ventas-grid-view');
     const detalle = document.getElementById('ventas-detalle-view');
     if(!grid || !detalle) return;
@@ -2235,6 +2270,12 @@
     const datalistBolsa = VENTA_TIPO_BOLSA_SUGERENCIAS.map(s=>`<option value="${escHtml_(s)}">`).join('');
     const contratoActualHtml = (ventaExistente && ventaExistente.contratoUrl)
       ? `<div class="fc-actual"><a href="${escHtml_(ventaExistente.contratoUrl)}" target="_blank" rel="noopener">${escHtml_(ventaExistente.contratoNombre || 'Contrato actual')}</a> — elegí otro archivo para reemplazarlo</div>`
+      : '';
+    // A diferencia del contrato, estos documentos se acumulan: los que ya
+    // están cargados se muestran nada más como referencia (no se pueden
+    // reemplazar acá, elegir archivos nuevos los suma a la lista).
+    const documentosActualesHtml = (ventaExistente && ventaExistente.documentos && ventaExistente.documentos.length)
+      ? `<div class="fc-actual" id="v-documentos-actuales">Ya cargados: ${ventaExistente.documentos.map(d=>`<a href="${escHtml_(d.url)}" target="_blank" rel="noopener">${escHtml_(d.nombre || 'Documento')}</a>`).join(', ')} — los que elijas abajo se agregan a estos, no los reemplazan</div>`
       : '';
 
     detalle.innerHTML = `
@@ -2288,6 +2329,14 @@
         <label>Observaciones</label>
         <textarea id="v-obs" rows="3"></textarea>
       </div>
+      <div class="field">
+        <label>Otros documentos (PDF) <span class="hint">(podés elegir varios a la vez; se van sumando a los que ya haya)</span></label>
+        <div class="file-field">
+          ${documentosActualesHtml}
+          <input type="file" id="v-documentos" accept="application/pdf" multiple>
+          <div id="v-documentos-nuevos" style="margin-top:6px;font-size:12.5px;color:var(--text-muted);"></div>
+        </div>
+      </div>
       <div class="error-msg" id="v-error"></div>
       <button type="button" class="submit-btn" id="v-guardar-btn">Guardar venta</button>
       <button type="button" class="submit-btn" id="v-cancelar-btn" style="background:var(--surface-2);color:var(--text-primary);margin-top:8px;">Cancelar</button>
@@ -2316,6 +2365,29 @@
         ventaArchivoContratoNombre_ = f.name;
       }catch(ex){
         showToast('No se pudo leer el archivo', true);
+      }
+    });
+
+    document.getElementById('v-documentos').addEventListener('change', async function(e){
+      const files = Array.from(e.target.files || []);
+      const aviso = document.getElementById('v-documentos-nuevos');
+      ventaArchivosDocumentosNuevos_ = [];
+      if(!files.length){ aviso.textContent = ''; return; }
+      const noPdf = files.some(f => f.type !== 'application/pdf');
+      if(noPdf){
+        showToast('Todos los documentos tienen que ser PDF', true);
+        e.target.value = '';
+        aviso.textContent = '';
+        return;
+      }
+      try{
+        for(const f of files){
+          const base64 = await archivoABase64_(f);
+          ventaArchivosDocumentosNuevos_.push({ base64, nombre: f.name });
+        }
+        aviso.textContent = 'Se van a subir al guardar: ' + files.map(f=>f.name).join(', ');
+      }catch(ex){
+        showToast('No se pudo leer alguno de los archivos', true);
       }
     });
 
@@ -2383,18 +2455,32 @@
         contratoNombre = resultadoContrato.nombre;
       }
 
+      // Los documentos adicionales se acumulan: se sube uno por vez (el
+      // backend los va agregando a la lista de esa venta) y nos quedamos
+      // con la lista completa que devuelve la última subida.
+      let documentos = ventaExistente ? (ventaExistente.documentos || []) : [];
+      if(ventaArchivosDocumentosNuevos_.length){
+        for(let i = 0; i < ventaArchivosDocumentosNuevos_.length; i++){
+          const doc = ventaArchivosDocumentosNuevos_[i];
+          btn.textContent = `Subiendo documento ${i+1} de ${ventaArchivosDocumentosNuevos_.length}...`;
+          const resultadoDoc = await subirDocumentoVentaRemoto(id, doc.base64, doc.nombre);
+          documentos = resultadoDoc.documentos || documentos;
+        }
+      }
+
       let ventaActualizada;
       if(ventaExistente){
-        ventaActualizada = Object.assign({}, ventaExistente, fields, { id, contratoUrl, contratoNombre });
+        ventaActualizada = Object.assign({}, ventaExistente, fields, { id, contratoUrl, contratoNombre, documentos });
         const idx = TODAS_LAS_VENTAS.findIndex(x => x.id === id);
         if(idx >= 0) TODAS_LAS_VENTAS[idx] = ventaActualizada;
       } else {
-        ventaActualizada = Object.assign({ fecha: new Date().toISOString().slice(0,10), encargado: '' }, fields, { id, contratoUrl, contratoNombre });
+        ventaActualizada = Object.assign({ fecha: new Date().toISOString().slice(0,10), encargado: '' }, fields, { id, contratoUrl, contratoNombre, documentos });
         TODAS_LAS_VENTAS.push(ventaActualizada);
       }
 
       ventaArchivoContratoBase64_ = null;
       ventaArchivoContratoNombre_ = null;
+      ventaArchivosDocumentosNuevos_ = [];
       // Después de guardar, se muestra la propia página de detalle de la
       // venta (no se vuelve a la lista ni se cierra nada) — así se puede
       // revisar de una lo que quedó guardado.
