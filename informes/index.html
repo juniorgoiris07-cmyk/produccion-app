@@ -278,7 +278,6 @@
   .calidad-subtitulo:first-of-type{margin-top:0;}
 
   .asig-form{background:var(--surface-2);border:1px solid var(--gridline);border-radius:10px;padding:12px;}
-  .asig-nota{background:var(--surface-2);border:1px solid var(--gridline);border-radius:10px;padding:12px;color:var(--text-secondary);font-size:12.5px;line-height:1.5;margin-top:14px;}
   .asig-list{display:flex;flex-direction:column;gap:8px;}
   .asig-item{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--gridline);border-radius:9px;padding:9px 11px;}
   .asig-item .ai-info{flex:1;min-width:0;}
@@ -1447,8 +1446,6 @@
         <div class="calidad-stat-box"><div class="cs-label">Asignado</div><div class="cs-val">${formatTon(asignado)}</div></div>
         <div class="calidad-stat-box disponible"><div class="cs-label">Libre</div><div class="cs-val">${formatTon(disponible)}</div></div>
       </div>
-
-      <div class="asig-nota">La asignación de toneladas a clientes se va a manejar desde la sección Comercial. Acá por ahora solo se puede ver cuánto hay libre, asignado y en total.</div>
 
       <div class="calidad-subtitulo">Bloques de 25 Tons de esta calidad</div>
       <div class="bloques-list" id="calidad-bloques-list">${bloquesHtml}</div>
