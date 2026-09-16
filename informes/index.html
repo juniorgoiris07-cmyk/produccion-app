@@ -1986,7 +1986,8 @@
   function mostrarSeccionSwitcher(){
     const s = getSesion();
     const sw = document.getElementById('seccion-switcher');
-    sw.classList.toggle('hidden', !s || s.rol !== 'admin');
+    const puedeVerLasDos = s && (s.rol === 'admin' || s.rol === 'comercial');
+    sw.classList.toggle('hidden', !puedeVerLasDos);
   }
 
   // Deja el formulario de login limpio y sin mensajes de error viejos, para
