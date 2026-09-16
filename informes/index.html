@@ -1930,7 +1930,10 @@
   }
 
   function rearmarHistorialAtras_(){
-    try { history.pushState({ gpApp: true }, ''); } catch(e){}
+    try {
+      const base = location.href.split('#')[0];
+      history.pushState({ gpApp: true }, '', base + '#gpapp');
+    } catch(e){}
   }
 
   window.addEventListener('popstate', function(){
