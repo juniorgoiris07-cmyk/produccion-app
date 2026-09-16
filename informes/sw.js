@@ -5,7 +5,7 @@
 // datos y cola de ediciones sin conexión vive en index.html, no en el
 // service worker.
 
-const CACHE_NAME = 'informes-produccion-v44';
+const CACHE_NAME = 'informes-produccion-v45';
 const ASSETS = [
   './',
   './index.html',
