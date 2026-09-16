@@ -313,6 +313,46 @@
   .file-field .fc-actual{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-secondary);margin-bottom:8px;}
   .file-field .fc-actual a{color:var(--series-1-ink);font-weight:700;text-decoration:none;}
   .file-field .fc-actual a:hover{text-decoration:underline;}
+
+  /* ============ Panel General (dashboard admin) ============ */
+  .panel-section-title{font-size:13px;font-weight:800;color:var(--text-primary);margin:0 0 12px;}
+  .panel-alert-card{background:var(--warning-bg);border:1px solid #e0c078;border-radius:12px;padding:13px 14px;margin-bottom:14px;}
+  .panel-alert-card .pa-titulo{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:800;color:#8a6300;margin-bottom:6px;}
+  .panel-alert-card .pa-item{font-size:12.5px;color:var(--text-secondary);padding:3px 0;}
+  .panel-kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px;}
+  .panel-kpi-card{background:var(--card);border:1px solid var(--gridline);border-radius:12px;padding:14px;box-shadow:var(--shadow-sm);animation:cardIn .35s ease both;}
+  .panel-kpi-card .pk-label{font-size:10.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px;}
+  .panel-kpi-card .pk-valor{font-size:21px;font-weight:800;color:var(--text-primary);letter-spacing:-.01em;}
+  .panel-kpi-card .pk-sub{font-size:11px;color:var(--text-muted);margin-top:3px;}
+  .panel-kpi-card.critico .pk-valor{color:var(--critical);}
+  .panel-kpi-card.critico .pk-label{color:var(--critical);}
+  .panel-stock-row{margin-bottom:14px;}
+  .panel-stock-row:last-child{margin-bottom:0;}
+  .panel-stock-row .ps-head{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12.5px;margin-bottom:5px;}
+  .panel-stock-row .ps-nombre{display:flex;align-items:center;gap:6px;font-weight:700;color:var(--text-secondary);}
+  .panel-stock-row .ps-nombre::before{content:'';width:8px;height:8px;border-radius:50%;background:currentColor;flex-shrink:0;}
+  .panel-stock-row .ps-total{font-weight:800;color:var(--text-primary);}
+  .panel-stock-row[data-calidad="Orgánico"] .ps-nombre{color:var(--cal-organico);}
+  .panel-stock-row[data-calidad="Orgánico BNN"] .ps-nombre{color:var(--cal-organico-bnn);}
+  .panel-stock-row[data-calidad="Convencional UE"] .ps-nombre{color:var(--cal-ue);}
+  .panel-stock-row[data-calidad="Convencional ROW"] .ps-nombre{color:var(--cal-row);}
+  .panel-stock-bar{position:relative;height:10px;border-radius:6px;background:var(--surface-2);border:1px solid var(--gridline);overflow:hidden;}
+  .panel-stock-bar .ps-fill{position:absolute;top:0;left:0;bottom:0;border-radius:6px 0 0 6px;background:currentColor;}
+  .panel-stock-row .ps-sub{display:flex;justify-content:space-between;font-size:10.5px;color:var(--text-muted);font-weight:600;margin-top:4px;}
+  .panel-chart-wrap{display:flex;justify-content:center;margin-bottom:6px;}
+  .panel-donut-wrap{display:flex;align-items:center;gap:18px;flex-wrap:wrap;}
+  .panel-legend{display:flex;flex-direction:column;gap:7px;flex:1 1 160px;min-width:160px;}
+  .panel-legend-row{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px;}
+  .panel-legend-row .pl-nombre{display:flex;align-items:center;gap:6px;color:var(--text-secondary);font-weight:600;}
+  .panel-legend-row .pl-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+  .panel-legend-row .pl-valor{font-weight:800;color:var(--text-primary);}
+  .panel-cliente-row{margin-bottom:10px;}
+  .panel-cliente-row:last-child{margin-bottom:0;}
+  .panel-cliente-row .pc-head{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;margin-bottom:4px;}
+  .panel-cliente-row .pc-nombre{font-weight:700;color:var(--text-secondary);}
+  .panel-cliente-row .pc-valor{font-weight:800;color:var(--text-primary);}
+  .panel-cliente-bar{height:8px;border-radius:5px;background:var(--surface-2);border:1px solid var(--gridline);overflow:hidden;}
+  .panel-cliente-bar .pc-fill{height:100%;border-radius:5px 0 0 5px;background:var(--series-1);}
 </style>
 </head>
 <body>
@@ -351,6 +391,7 @@
   <div class="seccion-switcher hidden" id="seccion-switcher">
     <button type="button" class="vista-btn seccion-btn" data-seccion="produccion">Producción</button>
     <button type="button" class="vista-btn seccion-btn" data-seccion="comercial">Comercial</button>
+    <button type="button" class="vista-btn seccion-btn hidden" data-seccion="general" id="seccion-btn-general">Panel General</button>
   </div>
 
   <!-- ============ SETUP ============ -->
@@ -534,6 +575,73 @@
         <div class="venta-list" id="ventas-list"></div>
       </div>
       <div class="hidden" id="ventas-detalle-view"></div>
+    </section>
+  </div>
+
+  <div id="panel-general-screen" class="hidden">
+    <header class="appbar">
+      <div class="appbar-top">
+        <div class="appbar-title">
+          <span class="appbar-icon">
+            <img src="icons/logo-header.png" alt="Progresso NH S.A.">
+          </span>
+          <div>
+            <h1>Panel General</h1>
+            <p id="panel-general-subtitle">Hola</p>
+          </div>
+        </div>
+        <button class="settings-btn" onclick="cerrarSesion()" title="Cerrar sesión" aria-label="Cerrar sesión">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 17l5-5-5-5M21 12H9" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </header>
+    <section>
+      <div class="produccion-periodo">
+        <label for="panel-general-periodo-select">Período (Producción y Ventas)</label>
+        <select id="panel-general-periodo-select">
+          <option value="este-mes">Este mes</option>
+          <option value="mes-anterior">Mes anterior</option>
+          <option value="ultimos-3">Últimos 3 meses</option>
+          <option value="ultimos-6">Últimos 6 meses</option>
+          <option value="este-anio">Este año</option>
+          <option value="todo">Todo</option>
+        </select>
+      </div>
+      <div class="toolbar">
+        <div class="grid-meta" id="panel-general-meta"></div>
+        <button class="export-btn" onclick="cargarPanelGeneral_()" id="panel-general-refresh-btn">
+          <svg id="panel-general-refresh-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M21 12a9 9 0 11-3-6.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M21 3v6h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Actualizar
+        </button>
+      </div>
+
+      <div id="panel-general-alertas"></div>
+
+      <div class="panel-kpi-grid" id="panel-general-kpis"></div>
+
+      <div class="card" style="margin-bottom:14px;">
+        <div class="panel-section-title">Stock disponible por Calidad</div>
+        <div id="panel-general-calidad"></div>
+      </div>
+
+      <div class="card" style="margin-bottom:14px;">
+        <div class="panel-section-title">Producción — tendencia mensual</div>
+        <div id="panel-general-produccion-chart"></div>
+        <div id="panel-general-produccion-turno"></div>
+      </div>
+
+      <div class="card" style="margin-bottom:14px;">
+        <div class="panel-section-title">Ventas por estado</div>
+        <div id="panel-general-ventas-estado"></div>
+      </div>
+
+      <div class="card">
+        <div class="panel-section-title">Top clientes del período</div>
+        <div id="panel-general-top-clientes"></div>
+      </div>
     </section>
   </div>
 
@@ -721,7 +829,7 @@
 
   // ---------- flujo de pantallas ----------
   function mostrarPantalla(id){
-    ['boot-loading','login-screen','setup-screen','app-screen','comercial-screen'].forEach(x=>{
+    ['boot-loading','login-screen','setup-screen','app-screen','comercial-screen','panel-general-screen'].forEach(x=>{
       document.getElementById(x).classList.toggle('hidden', x!==id);
     });
   }
@@ -2092,6 +2200,269 @@
     return tipo === 'Orgánico' ? 'tipo-organico' : 'tipo-convencional';
   }
 
+  // ============ Panel General (dashboard para Admin) ============
+  // Centraliza Producción + Comercial en una sola pantalla, pensada para
+  // que el jefe entienda todo de un vistazo sin tener que preguntar nada.
+  // El período (mismo menú que la vista "Producción") se calcula sobre el
+  // calendario real — no sobre qué meses tienen datos cargados — para que
+  // Producción y Ventas siempre comparen el mismo rango de fechas, tengan
+  // o no carga en algún mes puntual.
+  let periodoPanelGeneral = 'este-mes';
+
+  const VENTA_ESTADO_COLOR = {
+    'Pendiente': '#c9a227',
+    'Confirmada': '#2f5fd0',
+    'Entregada': '#0ca30c',
+    'Cancelada': '#d03b3b'
+  };
+
+  function clavesMesPeriodo_(periodo){
+    const hoy = new Date();
+    const anioActual = hoy.getFullYear(), mesActual = hoy.getMonth()+1; // 1-12
+    const claves = [];
+    const pushMes = (anio, mes1a12) => claves.push(`${anio}-${String(mes1a12).padStart(2,'0')}`);
+    switch(periodo){
+      case 'mes-anterior': {
+        const d = new Date(anioActual, mesActual-2, 1);
+        pushMes(d.getFullYear(), d.getMonth()+1);
+        break;
+      }
+      case 'ultimos-3':
+      case 'ultimos-6': {
+        const n = periodo === 'ultimos-3' ? 3 : 6;
+        for(let i=0;i<n;i++){
+          const d = new Date(anioActual, mesActual-1-i, 1);
+          pushMes(d.getFullYear(), d.getMonth()+1);
+        }
+        break;
+      }
+      case 'este-anio':
+        for(let m=1;m<=mesActual;m++) pushMes(anioActual, m);
+        break;
+      case 'todo':
+        return null; // sin filtro: todo el historial
+      case 'este-mes':
+      default:
+        pushMes(anioActual, mesActual);
+    }
+    return new Set(claves);
+  }
+
+  function etiquetaPeriodo_(periodo){
+    const m = {
+      'este-mes':'este mes', 'mes-anterior':'el mes anterior', 'ultimos-3':'los últimos 3 meses',
+      'ultimos-6':'los últimos 6 meses', 'este-anio':'este año', 'todo':'todo el historial'
+    };
+    return m[periodo] || 'este mes';
+  }
+
+  // ---------- gráficos simples en SVG, sin librerías externas (misma
+  // paleta gold del resto de la app) ----------
+  function svgBarras_(items, opts){
+    opts = opts || {};
+    const w = opts.width || 320, h = opts.height || 130, gap = 10, padBottom = 22;
+    if(!items.length) return `<div class="empty-state">Todavía no hay datos para mostrar.</div>`;
+    const max = Math.max(1, ...items.map(i=>i.valor));
+    const barW = (w - gap*(items.length-1)) / items.length;
+    const bars = items.map((it,i)=>{
+      const barH = Math.max(2, (it.valor/max) * (h - padBottom - 16));
+      const x = i*(barW+gap);
+      const y = (h - padBottom) - barH;
+      return `
+        <text x="${x+barW/2}" y="${y-5}" text-anchor="middle" font-size="9.5" font-weight="700" fill="var(--text-secondary)">${escHtml_(it.valorTxt || String(it.valor))}</text>
+        <rect x="${x}" y="${y}" width="${barW}" height="${barH}" rx="4" fill="var(--series-1)"/>
+        <text x="${x+barW/2}" y="${h-6}" text-anchor="middle" font-size="9.5" fill="var(--text-muted)">${escHtml_(it.etiqueta)}</text>`;
+    }).join('');
+    return `<svg width="100%" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Gráfico de barras">${bars}</svg>`;
+  }
+
+  function svgDonut_(segmentos, size){
+    size = size || 128;
+    const thickness = 18, r = (size - thickness) / 2, c = 2*Math.PI*r, cx = size/2, cy = size/2;
+    const total = segmentos.reduce((s,x)=> s + x.valor, 0);
+    let offset = 0;
+    const circles = segmentos.filter(s=> s.valor > 0).map(s=>{
+      const frac = total > 0 ? s.valor/total : 0;
+      const dash = frac * c;
+      const el = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${s.color}" stroke-width="${thickness}" stroke-dasharray="${dash} ${c-dash}" stroke-dashoffset="${-offset}" transform="rotate(-90 ${cx} ${cy})"/>`;
+      offset += dash;
+      return el;
+    }).join('');
+    const centro = total > 0
+      ? `<text x="${cx}" y="${cy-3}" text-anchor="middle" font-size="15" font-weight="800" fill="var(--text-primary)">${total}</text>
+         <text x="${cx}" y="${cy+13}" text-anchor="middle" font-size="8.5" fill="var(--text-muted)">venta${total===1?'':'s'}</text>`
+      : `<text x="${cx}" y="${cy+4}" text-anchor="middle" font-size="10" fill="var(--text-muted)">Sin datos</text>`;
+    return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" role="img" aria-label="Gráfico de ventas por estado">
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--gridline)" stroke-width="${thickness}"/>
+      ${circles}
+      ${centro}
+    </svg>`;
+  }
+
+  // ---------- carga y armado del panel ----------
+  // Trae Producción y Comercial en paralelo (el panel necesita ambas, sin
+  // importar cuál se haya visitado antes) — recargarDatos()/cargarVentas()
+  // ya manejan sus propios errores y caché, así que acá alcanza esperarlas.
+  async function cargarPanelGeneral_(){
+    const icon = document.getElementById('panel-general-refresh-icon');
+    const btn = document.getElementById('panel-general-refresh-btn');
+    if(icon) icon.classList.add('spin');
+    if(btn) btn.disabled = true;
+    try{
+      await Promise.all([ recargarDatos(), cargarVentas() ]);
+    } finally {
+      if(icon) icon.classList.remove('spin');
+      if(btn) btn.disabled = false;
+    }
+    renderPanelGeneral_();
+  }
+
+  function renderPanelGeneral_(){
+    const kpiCont = document.getElementById('panel-general-kpis');
+    if(!kpiCont) return; // la pantalla todavía no está en el DOM
+
+    const selectPeriodo = document.getElementById('panel-general-periodo-select');
+    selectPeriodo.value = periodoPanelGeneral;
+    selectPeriodo.onchange = ()=>{ periodoPanelGeneral = selectPeriodo.value; renderPanelGeneral_(); };
+
+    const claves = clavesMesPeriodo_(periodoPanelGeneral); // Set "AAAA-MM" o null ("todo")
+    const enPeriodo = (fecha) => {
+      if(!claves) return true;
+      const p = fechaPartes_(fecha);
+      return p ? claves.has(`${p.anio}-${p.mes}`) : false;
+    };
+
+    const meta = document.getElementById('panel-general-meta');
+    if(meta) meta.textContent = ULTIMA_SYNC_TS ? `Actualizado ${ULTIMA_SYNC_TS.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}` : '';
+
+    const cargasPeriodo = TODAS_LAS_CARGAS.filter(c=> enPeriodo(c.fecha));
+    const ventasPeriodo = TODAS_LAS_VENTAS.filter(v=> enPeriodo(v.fecha));
+
+    // ---- alertas: siempre sobre TODO el historial (no solo el período
+    // elegido), para que nunca queden "escondidas" detrás del selector ----
+    const { grupos: gruposCalidad, sinClasificar } = agruparPorCalidad_(TODAS_LAS_CARGAS);
+    const ventasSinContrato = TODAS_LAS_VENTAS.filter(v=> !v.contratoUrl);
+    const alertaItems = [];
+    if(sinClasificar.length) alertaItems.push(`${sinClasificar.length} bigbag${sinClasificar.length===1?'':'s'} sin Calidad clasificada (${formatTon(sinClasificar.length*TON_POR_BIGBAG)})`);
+    if(ventasSinContrato.length) alertaItems.push(`${ventasSinContrato.length} venta${ventasSinContrato.length===1?'':'s'} sin contrato cargado`);
+    const alertasCont = document.getElementById('panel-general-alertas');
+    alertasCont.innerHTML = alertaItems.length ? `
+      <div class="panel-alert-card">
+        <div class="pa-titulo">⚠ Para revisar</div>
+        ${alertaItems.map(t=> `<div class="pa-item">${t}</div>`).join('')}
+      </div>` : '';
+
+    // ---- KPIs principales ----
+    const toneladasProduccion = cargasPeriodo.length * TON_POR_BIGBAG;
+    const stockDisponibleTotal = gruposCalidad.reduce((s,g)=>{
+      const total = g.bbs.length * TON_POR_BIGBAG;
+      const asignado = asignadoPorCalidad_(g.nombre);
+      return s + Math.max(0, total - asignado);
+    }, 0);
+    const toneladasVentas = ventasPeriodo.reduce((s,v)=> s + (Number(v.toneladas)||0), 0);
+
+    kpiCont.innerHTML = `
+      <div class="panel-kpi-card">
+        <div class="pk-label">Producción</div>
+        <div class="pk-valor">${formatTon(toneladasProduccion)}</div>
+        <div class="pk-sub">${escHtml_(etiquetaPeriodo_(periodoPanelGeneral))}</div>
+      </div>
+      <div class="panel-kpi-card">
+        <div class="pk-label">Stock disponible</div>
+        <div class="pk-valor">${formatTon(stockDisponibleTotal)}</div>
+        <div class="pk-sub">hoy, las 4 calidades</div>
+      </div>
+      <div class="panel-kpi-card">
+        <div class="pk-label">Ventas</div>
+        <div class="pk-valor">${formatTon(toneladasVentas)}</div>
+        <div class="pk-sub">${ventasPeriodo.length} venta${ventasPeriodo.length===1?'':'s'} · ${escHtml_(etiquetaPeriodo_(periodoPanelGeneral))}</div>
+      </div>
+      <div class="panel-kpi-card ${ventasSinContrato.length ? 'critico' : ''}">
+        <div class="pk-label">Sin contrato</div>
+        <div class="pk-valor">${ventasSinContrato.length}</div>
+        <div class="pk-sub">venta${ventasSinContrato.length===1?'':'s'} sin PDF cargado</div>
+      </div>`;
+
+    // ---- Stock por Calidad (Total/Asignado/Libre — siempre a hoy) ----
+    document.getElementById('panel-general-calidad').innerHTML = gruposCalidad.map(g=>{
+      const total = g.bbs.length * TON_POR_BIGBAG;
+      const asignado = asignadoPorCalidad_(g.nombre);
+      const disponible = Math.max(0, total - asignado);
+      const pct = total > 0 ? Math.min(100, (asignado/total)*100) : 0;
+      return `
+        <div class="panel-stock-row" data-calidad="${escHtml_(g.nombre)}">
+          <div class="ps-head">
+            <span class="ps-nombre">${escHtml_(g.nombre)}</span>
+            <span class="ps-total">${formatTon(total)}</span>
+          </div>
+          <div class="panel-stock-bar"><div class="ps-fill" style="width:${pct}%;"></div></div>
+          <div class="ps-sub"><span>Asignado: ${formatTon(asignado)}</span><span>Libre: ${formatTon(disponible)}</span></div>
+        </div>`;
+    }).join('');
+
+    // ---- Producción: tendencia (últimos 6 meses con datos) + turno del período ----
+    const meses = agruparPorMes_(TODAS_LAS_CARGAS); // más reciente primero
+    const ultimos6 = meses.slice(0, 6).slice().reverse(); // más viejo -> más nuevo, izq. a der.
+    document.getElementById('panel-general-produccion-chart').innerHTML = ultimos6.length ? svgBarras_(ultimos6.map(m=>({
+      etiqueta: NOMBRES_MES[Number(m.mes)-1].slice(0,3),
+      valor: m.toneladas,
+      valorTxt: formatTon(m.toneladas)
+    })), { height: 140 }) : `<div class="empty-state">Todavía no hay bigbags con fecha cargada.</div>`;
+
+    const clavesTurno = claves || new Set(meses.map(m=>m.clave)); // "todo" = todos los meses con datos
+    const turnos = desglosePorTurno_(TODAS_LAS_CARGAS, clavesTurno);
+    document.getElementById('panel-general-produccion-turno').innerHTML = `<div class="produccion-turno-card" style="margin-top:12px;">${turnos.map(t=>`
+      <div class="produccion-turno-col">
+        <div class="pt-nombre">${escHtml_(t.nombre)}</div>
+        <div class="pt-ton">${formatTon(t.toneladas)}</div>
+        <div class="pt-detalle">${t.dias} día${t.dias===1?'':'s'} · prom. ${formatTon(t.promedioPorDia)}/día</div>
+      </div>`).join('')}</div>`;
+
+    // ---- Ventas por estado (donut) ----
+    const estadoCont = document.getElementById('panel-general-ventas-estado');
+    const segmentos = VENTA_ESTADOS.map(estado => {
+      const delEstado = ventasPeriodo.filter(v=> (v.estado||'Pendiente') === estado);
+      return {
+        estado, color: VENTA_ESTADO_COLOR[estado],
+        valor: delEstado.length,
+        toneladas: delEstado.reduce((s,v)=>s+(Number(v.toneladas)||0),0)
+      };
+    });
+    estadoCont.innerHTML = ventasPeriodo.length ? `
+      <div class="panel-donut-wrap">
+        <div class="panel-chart-wrap" style="margin-bottom:0;">${svgDonut_(segmentos.map(s=>({color:s.color, valor:s.valor})))}</div>
+        <div class="panel-legend">
+          ${segmentos.map(s=>`
+            <div class="panel-legend-row">
+              <span class="pl-nombre"><span class="pl-dot" style="background:${s.color};"></span>${escHtml_(s.estado)}</span>
+              <span class="pl-valor">${s.valor} · ${formatTon(s.toneladas)}</span>
+            </div>`).join('')}
+        </div>
+      </div>` : `<div class="empty-state">Todavía no hay ventas cargadas ${escHtml_(etiquetaPeriodo_(periodoPanelGeneral))}.</div>`;
+
+    // ---- Top 5 clientes del período (por toneladas vendidas) ----
+    const porCliente = new Map();
+    ventasPeriodo.forEach(v=>{
+      const nombre = String(v.cliente || '').trim() || 'Sin nombre';
+      porCliente.set(nombre, (porCliente.get(nombre)||0) + (Number(v.toneladas)||0));
+    });
+    const topClientes = [...porCliente.entries()].sort((a,b)=> b[1]-a[1]).slice(0,5);
+    const clientesCont = document.getElementById('panel-general-top-clientes');
+    if(topClientes.length){
+      const maxCliente = Math.max(...topClientes.map(c=>c[1]));
+      clientesCont.innerHTML = topClientes.map(([nombre, ton])=>{
+        const pct = maxCliente > 0 ? (ton/maxCliente)*100 : 0;
+        return `
+          <div class="panel-cliente-row">
+            <div class="pc-head"><span class="pc-nombre">${escHtml_(nombre)}</span><span class="pc-valor">${formatTon(ton)}</span></div>
+            <div class="panel-cliente-bar"><div class="pc-fill" style="width:${pct}%;"></div></div>
+          </div>`;
+      }).join('');
+    } else {
+      clientesCont.innerHTML = `<div class="empty-state">Todavía no hay ventas cargadas ${escHtml_(etiquetaPeriodo_(periodoPanelGeneral))}.</div>`;
+    }
+  }
+
   // Saca el ID de archivo de una URL de Drive tipo
   // "https://drive.google.com/file/d/XXXX/view", para poder armar la URL
   // "/preview" (la que se puede embeber en un iframe) del mismo archivo.
@@ -2535,8 +2906,13 @@
   function mostrarSeccionSwitcher(){
     const s = getSesion();
     const sw = document.getElementById('seccion-switcher');
+    const esAdmin = s && s.rol === 'admin';
     const puedeVerLasDos = s && (s.rol === 'admin' || s.rol === 'comercial');
     sw.classList.toggle('hidden', !puedeVerLasDos);
+    // "Panel General" es exclusivo de Admin — Comercial sigue viendo solo
+    // los botones de Producción/Comercial, como hasta ahora.
+    const btnGeneral = document.getElementById('seccion-btn-general');
+    if(btnGeneral) btnGeneral.classList.toggle('hidden', !esAdmin);
   }
 
   // Deja el formulario de login limpio y sin mensajes de error viejos, para
@@ -2572,6 +2948,12 @@
       const el = document.getElementById('comercial-subtitle');
       if(el && s) el.textContent = 'Hola, ' + (s.nombre || s.usuario);
       cargarVentas();
+    } else if(seccion === 'general'){
+      mostrarPantalla('panel-general-screen');
+      const s = getSesion();
+      const el = document.getElementById('panel-general-subtitle');
+      if(el && s) el.textContent = 'Hola, ' + (s.nombre || s.usuario);
+      cargarPanelGeneral_();
     } else {
       const s = getSesion();
       const el = document.getElementById('produccion-subtitle');
