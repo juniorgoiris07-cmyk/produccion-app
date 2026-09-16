@@ -262,7 +262,9 @@
   .calidad-card[data-calidad="Convencional ROW"] .cc-nombre{color:var(--cal-row);}
   .calidad-sin-clasificar{font-size:12px;color:var(--text-muted);padding:12px 2px 0;text-align:center;line-height:1.5;}
 
-  .calidad-volver{appearance:none;font-family:inherit;display:inline-flex;align-items:center;gap:6px;border:none;background:none;color:var(--series-1-ink);font-size:13px;font-weight:700;cursor:pointer;padding:4px 0;margin-bottom:12px;}
+  .calidad-volver{appearance:none;font-family:inherit;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--series-1);background:var(--gold-bg);color:var(--series-1-ink);font-size:13px;font-weight:700;cursor:pointer;padding:7px 13px;border-radius:20px;margin-bottom:14px;transition:background-color .15s ease;}
+  .calidad-volver:hover{background:var(--series-1);color:#fff;}
+  .calidad-volver:active{background:var(--series-1);color:#fff;}
   .calidad-detalle-nombre{display:flex;align-items:center;gap:9px;font-size:18px;font-weight:800;margin-bottom:10px;letter-spacing:-.01em;}
   .calidad-detalle-nombre::before{content:'';width:13px;height:13px;border-radius:50%;background:currentColor;flex-shrink:0;}
   .calidad-detalle-nombre[data-calidad="Orgánico"]{color:var(--cal-organico);}
@@ -504,7 +506,7 @@
 
 <div class="modal-overlay" id="lote-modal" onclick="if(event.target===this) cerrarModal()">
   <div class="modal-card">
-    <button class="modal-close" onclick="cerrarModal()">✕</button>
+    <button class="modal-close" id="modal-close-btn" onclick="cerrarModal()">✕</button>
     <div id="modal-body"></div>
   </div>
 </div>
@@ -1038,6 +1040,7 @@
       list.appendChild(item);
     });
     document.getElementById('lote-modal').classList.add('visible');
+    actualizarBotonModalCerrar_();
   }
 
   // ---------- agrupado de bigbags por lote / bloque de 25 tons ----------
@@ -1554,6 +1557,7 @@
       list.appendChild(item);
     });
     document.getElementById('lote-modal').classList.add('visible');
+    actualizarBotonModalCerrar_();
   }
 
   function renderVistaLote(datos){
@@ -1669,6 +1673,7 @@
       list.appendChild(item);
     });
     document.getElementById('lote-modal').classList.add('visible');
+    actualizarBotonModalCerrar_();
   }
 
   // Detalle de un BLOQUE: siempre muestra el resumen general (promedio de
@@ -1713,6 +1718,7 @@
       list.appendChild(item);
     });
     document.getElementById('lote-modal').classList.add('visible');
+    actualizarBotonModalCerrar_();
   }
 
   function abrirModal(c, volverA){
@@ -1744,6 +1750,7 @@
       editBtn.title = 'No se puede editar: falta el identificador del registro.';
     }
     document.getElementById('lote-modal').classList.add('visible');
+    actualizarBotonModalCerrar_();
   }
 
   function activarEdicionMicro(c, volverA){
@@ -1876,6 +1883,24 @@
   // si es null, cerrar sí cierra todo el modal.
   let modalVolverA = null;
 
+  // El botón de la esquina del modal cambia según haya o no una vista
+  // anterior a la que volver: si la hay, muestra una flecha "volver" (para
+  // que quede claro que no se pierde lo que se estaba viendo); si no, una X
+  // de cerrar normal.
+  function actualizarBotonModalCerrar_(){
+    const btn = document.getElementById('modal-close-btn');
+    if(!btn) return;
+    if(modalVolverA){
+      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      btn.title = 'Volver';
+      btn.setAttribute('aria-label', 'Volver');
+    } else {
+      btn.textContent = '✕';
+      btn.title = 'Cerrar';
+      btn.setAttribute('aria-label', 'Cerrar');
+    }
+  }
+
   function cerrarModal(){
     if(modalVolverA){
       const volver = modalVolverA;
@@ -1900,102 +1925,6 @@
     t.textContent = msg;
     t.className = 'toast show' + (isError ? ' error' : (isWarn ? ' warn' : ''));
     setTimeout(()=>t.classList.remove('show'), isWarn ? 4000 : 2500);
-  }
-
-  // ---------- botón "Atrás" del teléfono ----------
-  // Por defecto, el botón/gesto de "Atrás" de Android cierra la app de una
-  // si no hay más historial. Acá lo usamos para navegar un nivel para
-  // adentro (cerrar el modal, volver a la grilla de Calidad, volver al
-  // menú), como en cualquier app instalada. Recién cuando ya no hay nada
-  // más para cerrar (estás en una pantalla "raíz": el menú principal,
-  // Comercial, login o la configuración inicial) hace falta tocarlo de
-  // nuevo para salir de verdad.
-  let salirArmado = false;
-  let salirTimeoutId = null;
-
-  function haySubvistaAbierta_(){
-    const modal = document.getElementById('lote-modal');
-    if(modal && modal.classList.contains('visible')) return true;
-    const appScreen = document.getElementById('app-screen');
-    const appVisible = appScreen && !appScreen.classList.contains('hidden');
-    if(appVisible && vistaActual !== null) return true;
-    return false;
-  }
-
-  function cerrarUnNivel_(){
-    const modal = document.getElementById('lote-modal');
-    if(modal && modal.classList.contains('visible')){ cerrarModal(); return; }
-    if(vistaActual === 'calidad' && calidadSeleccionada){ volverAGridCalidad_(); return; }
-    cambiarVista(null);
-  }
-
-  function rearmarHistorialAtras_(){
-    try {
-      const base = location.href.split('#')[0];
-      history.pushState({ gpApp: true }, '', base + '#gpapp');
-      backDebugPush_++;
-      actualizarBackDebug_();
-    } catch(e){}
-  }
-
-  window.addEventListener('popstate', function(){
-    backDebugPop_++;
-    actualizarBackDebug_('pop');
-    if(haySubvistaAbierta_()){
-      cerrarUnNivel_();
-      rearmarHistorialAtras_();
-      return;
-    }
-    // Pantalla raíz: la primera vez avisamos, y si no se vuelve a tocar
-    // "Atrás" en los próximos 2 segundos, se rearma solo para poder avisar
-    // de nuevo la próxima vez (en vez de quedar la app "cerrable" para
-    // siempre con solo un toque, ya pasado ese momento).
-    if(salirTimeoutId){ clearTimeout(salirTimeoutId); salirTimeoutId = null; }
-    if(salirArmado){
-      salirArmado = false;
-      return;
-    }
-    salirArmado = true;
-    showToast('Tocá de nuevo para salir', false, true);
-    salirTimeoutId = setTimeout(() => {
-      salirArmado = false;
-      salirTimeoutId = null;
-      rearmarHistorialAtras_();
-    }, 2000);
-  });
-
-  // ---------- diagnóstico TEMPORAL del botón atrás ----------
-  // Un texto chiquito en la esquina para poder confirmar, mirando la
-  // pantalla (o un video), si este código realmente llega a correr y si el
-  // "Atrás" del teléfono efectivamente le está avisando a la página (evento
-  // popstate) antes de que Android cierre la app. Sacar esto una vez que el
-  // botón atrás ya ande bien.
-  let backDebugPush_ = 0;
-  let backDebugPop_ = 0;
-  function actualizarBackDebug_(origen){
-    try {
-      let el = document.getElementById('back-debug-tmp');
-      if(!el){
-        el = document.createElement('div');
-        el.id = 'back-debug-tmp';
-        el.style.cssText = 'position:fixed;left:4px;bottom:4px;z-index:99999;background:rgba(0,0,0,0.55);color:#8f8;font-size:9px;line-height:1.3;padding:2px 5px;border-radius:4px;pointer-events:none;font-family:monospace;';
-        document.body.appendChild(el);
-      }
-      el.textContent = 'BB v49 push=' + backDebugPush_ + ' pop=' + backDebugPop_ + (origen ? ' (' + origen + ')' : '') + ' len=' + history.length;
-    } catch(e){}
-  }
-
-  // Esperamos a que la navegación inicial esté 100% asentada antes de meter
-  // el primer pushState (hacerlo demasiado pronto, mientras la página
-  // todavía está cargando, puede hacer que Android no lo cuente bien).
-  function armarHistorialInicial_(){
-    rearmarHistorialAtras_();
-    actualizarBackDebug_('init');
-  }
-  if(document.readyState === 'complete'){
-    setTimeout(armarHistorialInicial_, 50);
-  } else {
-    window.addEventListener('load', ()=> setTimeout(armarHistorialInicial_, 50));
   }
 
   // ---------- service worker: permite abrir la app sin conexión ----------
