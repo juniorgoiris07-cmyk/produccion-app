@@ -1902,6 +1902,63 @@
     setTimeout(()=>t.classList.remove('show'), isWarn ? 4000 : 2500);
   }
 
+  // ---------- botón "Atrás" del teléfono ----------
+  // Por defecto, el botón/gesto de "Atrás" de Android cierra la app de una
+  // si no hay más historial. Acá lo usamos para navegar un nivel para
+  // adentro (cerrar el modal, volver a la grilla de Calidad, volver al
+  // menú), como en cualquier app instalada. Recién cuando ya no hay nada
+  // más para cerrar (estás en una pantalla "raíz": el menú principal,
+  // Comercial, login o la configuración inicial) hace falta tocarlo de
+  // nuevo para salir de verdad.
+  let salirArmado = false;
+  let salirTimeoutId = null;
+
+  function haySubvistaAbierta_(){
+    const modal = document.getElementById('lote-modal');
+    if(modal && modal.classList.contains('visible')) return true;
+    const appScreen = document.getElementById('app-screen');
+    const appVisible = appScreen && !appScreen.classList.contains('hidden');
+    if(appVisible && vistaActual !== null) return true;
+    return false;
+  }
+
+  function cerrarUnNivel_(){
+    const modal = document.getElementById('lote-modal');
+    if(modal && modal.classList.contains('visible')){ cerrarModal(); return; }
+    if(vistaActual === 'calidad' && calidadSeleccionada){ volverAGridCalidad_(); return; }
+    cambiarVista(null);
+  }
+
+  function rearmarHistorialAtras_(){
+    try { history.pushState({ gpApp: true }, ''); } catch(e){}
+  }
+
+  window.addEventListener('popstate', function(){
+    if(haySubvistaAbierta_()){
+      cerrarUnNivel_();
+      rearmarHistorialAtras_();
+      return;
+    }
+    // Pantalla raíz: la primera vez avisamos, y si no se vuelve a tocar
+    // "Atrás" en los próximos 2 segundos, se rearma solo para poder avisar
+    // de nuevo la próxima vez (en vez de quedar la app "cerrable" para
+    // siempre con solo un toque, ya pasado ese momento).
+    if(salirTimeoutId){ clearTimeout(salirTimeoutId); salirTimeoutId = null; }
+    if(salirArmado){
+      salirArmado = false;
+      return;
+    }
+    salirArmado = true;
+    showToast('Tocá de nuevo para salir', false, true);
+    salirTimeoutId = setTimeout(() => {
+      salirArmado = false;
+      salirTimeoutId = null;
+      rearmarHistorialAtras_();
+    }, 2000);
+  });
+
+  rearmarHistorialAtras_();
+
   // ---------- service worker: permite abrir la app sin conexión ----------
   // Además, cuando se publica una versión nueva, la app se actualiza sola la
   // próxima vez que se abre (no hace falta forzar un refresco a mano).
