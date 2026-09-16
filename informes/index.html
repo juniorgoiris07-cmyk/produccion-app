@@ -288,6 +288,31 @@
   .asig-item .ai-ton{flex:0 0 auto;font-size:13px;font-weight:700;color:var(--text-primary);white-space:nowrap;}
   .asig-quitar{flex-shrink:0;border:1px solid var(--gridline);background:var(--surface-2);color:var(--critical);width:28px;height:28px;border-radius:50%;font-size:13px;cursor:pointer;line-height:1;transition:background-color .15s ease;}
   .asig-quitar:hover{background:var(--critical-bg);}
+
+  /* ---------- Ventas (Comercial) ---------- */
+  .export-btn.primary{background:var(--series-1);border-color:var(--series-1);color:#fff;}
+  .export-btn.primary:hover{filter:brightness(0.94);background:var(--series-1);}
+  .venta-list{display:flex;flex-direction:column;gap:10px;}
+  .venta-card{display:block;width:100%;background:var(--card);border:1px solid var(--gridline);border-radius:12px;padding:13px 14px;cursor:pointer;text-align:left;font-family:inherit;transition:box-shadow .2s ease,border-color .2s ease,transform .15s ease;box-shadow:var(--shadow-sm);animation:cardIn .35s ease both;}
+  .venta-card:hover{border-color:var(--series-1);box-shadow:var(--shadow-md);transform:translateY(-2px);}
+  .venta-card:active{transform:translateY(0) scale(.98);}
+  .venta-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:2px;}
+  .venta-cliente{font-weight:800;font-size:15px;color:var(--text-primary);overflow-wrap:break-word;word-break:break-word;}
+  .venta-fecha{font-size:11px;color:var(--text-muted);font-weight:600;white-space:nowrap;flex-shrink:0;padding-top:2px;}
+  .venta-meta{font-size:12px;color:var(--text-secondary);margin-top:2px;overflow-wrap:break-word;word-break:break-word;}
+  .venta-badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;}
+  .badge.tipo-convencional{background:var(--gold-bg);color:var(--cal-ue);}
+  .badge.tipo-organico{background:var(--good-bg);color:var(--cal-organico);}
+  .badge.estado-pendiente{background:var(--warning-bg);color:#8a6300;}
+  .badge.estado-confirmada{background:var(--gold-bg);color:var(--series-1-ink);}
+  .badge.estado-entregada{background:var(--good-bg);color:var(--good);}
+  .badge.estado-cancelada{background:var(--critical-bg);color:var(--critical);}
+  .venta-contrato-chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:var(--series-1-ink);margin-top:9px;}
+  .file-field{border:1.5px dashed var(--border);border-radius:9px;padding:11px 12px;background:var(--surface-1);}
+  .file-field input[type=file]{padding:0;border:none;background:none;font-size:12.5px;}
+  .file-field .fc-actual{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-secondary);margin-bottom:8px;}
+  .file-field .fc-actual a{color:var(--series-1-ink);font-weight:700;text-decoration:none;}
+  .file-field .fc-actual a:hover{text-decoration:underline;}
 </style>
 </head>
 <body>
@@ -494,10 +519,18 @@
       </div>
     </header>
     <section>
-      <div class="card" style="text-align:center;padding:40px 18px;">
-        <p style="color:var(--text-secondary);font-size:14px;margin:0 0 6px;">Esta sección está en construcción.</p>
-        <p style="color:var(--text-muted);font-size:12.5px;margin:0;">Pronto vas a poder cargar acá exportaciones, precios, información de ventas y documentos (contratos, análisis, certificados).</p>
+      <div class="toolbar">
+        <div class="grid-meta" id="ventas-meta"></div>
+        <button class="export-btn" onclick="cargarVentas()" id="ventas-refresh-btn">
+          <svg id="ventas-refresh-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M21 12a9 9 0 11-3-6.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M21 3v6h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Actualizar
+        </button>
+        <button class="export-btn primary" onclick="abrirModalVenta(null)">+ Nueva venta</button>
       </div>
+      <div class="venta-list" id="ventas-list"></div>
     </section>
   </div>
 
@@ -589,6 +622,66 @@
     if(!res.ok) throw new Error(`Error ${res.status}`);
     const data = await res.json();
     if(!data.ok) throw new Error(data.error || 'No se pudo eliminar la asignación.');
+    return data;
+  }
+
+  // ---------- Ventas (Comercial) — llamadas al backend Comercial ----------
+  // Ventas vive en el mismo backend de Apps Script que el login/roles (no en
+  // el de Producción), así que estas llamadas usan COMERCIAL_LOGIN_URL en
+  // vez de getWebAppUrl().
+  async function obtenerVentasRemoto(){
+    const res = await fetch(COMERCIAL_LOGIN_URL + '?action=ventas');
+    if(!res.ok) throw new Error(`Error ${res.status}`);
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'No se pudieron obtener las ventas.');
+    return data.ventas || [];
+  }
+
+  async function crearVentaRemoto(fields){
+    const res = await fetch(COMERCIAL_LOGIN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(Object.assign({ action: 'crearVenta' }, fields))
+    });
+    if(!res.ok) throw new Error(`Error ${res.status}`);
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'No se pudo guardar la venta.');
+    return data;
+  }
+
+  async function actualizarVentaRemoto(id, fields){
+    const res = await fetch(COMERCIAL_LOGIN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(Object.assign({ action: 'actualizarVenta', id }, fields))
+    });
+    if(!res.ok) throw new Error(`Error ${res.status}`);
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'No se pudo guardar la venta.');
+    return data;
+  }
+
+  async function eliminarVentaRemoto(id){
+    const res = await fetch(COMERCIAL_LOGIN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'eliminarVenta', id })
+    });
+    if(!res.ok) throw new Error(`Error ${res.status}`);
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'No se pudo eliminar la venta.');
+    return data;
+  }
+
+  async function subirContratoVentaRemoto(id, base64, nombre){
+    const res = await fetch(COMERCIAL_LOGIN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'subirContratoVenta', id, contratoBase64: base64, contratoNombre: nombre })
+    });
+    if(!res.ok) throw new Error(`Error ${res.status}`);
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'No se pudo subir el contrato.');
     return data;
   }
 
@@ -1944,6 +2037,319 @@
     });
   }
 
+  // ---------- Ventas (Comercial) ----------
+  // Ventas vive en el backend Comercial (mismo que login/roles), separado
+  // del backend de Producción. Los estados y el tipo de bolsa son listas
+  // elegidas acá (no las dio nadie de manera exacta): si hace falta
+  // agregar/sacar alguna, se cambia en estos arrays y, para Estado, también
+  // en VENTA_ESTADOS de apps-script-comercial/Code.gs (tienen que coincidir,
+  // el backend valida contra esa misma lista).
+  const VENTA_ESTADOS = ['Pendiente', 'Confirmada', 'Entregada', 'Cancelada'];
+  const VENTA_TIPOS_PRODUCTO = ['Convencional', 'Orgánico'];
+  const VENTA_PALLET_PISO = ['Pallet', 'Piso'];
+  // "Tipo de bolsa" no tiene un listado cerrado: queda como texto libre con
+  // sugerencias (datalist), para no trabar la carga si aparece un tipo que
+  // no estaba pensado.
+  const VENTA_TIPO_BOLSA_SUGERENCIAS = ['Big Bag', 'Bolsa 25kg', 'Bolsa 50kg', 'A granel'];
+
+  let TODAS_LAS_VENTAS = [];
+  let ventasCargadasAlgunaVez = false;
+  // PDF elegido en el formulario de venta, ya convertido a base64, hasta que
+  // se guarde la venta (recién ahí se sube, porque subir el contrato
+  // necesita el id de una venta que ya existe).
+  let ventaArchivoContratoBase64_ = null;
+  let ventaArchivoContratoNombre_ = null;
+
+  function ventaEstadoBadgeClass_(estado){
+    const m = { 'Pendiente':'estado-pendiente', 'Confirmada':'estado-confirmada', 'Entregada':'estado-entregada', 'Cancelada':'estado-cancelada' };
+    return m[estado] || 'estado-pendiente';
+  }
+  function ventaTipoBadgeClass_(tipo){
+    return tipo === 'Orgánico' ? 'tipo-organico' : 'tipo-convencional';
+  }
+
+  async function cargarVentas(){
+    const icon = document.getElementById('ventas-refresh-icon');
+    const btn = document.getElementById('ventas-refresh-btn');
+    if(icon) icon.classList.add('spin');
+    if(btn) btn.disabled = true;
+    try{
+      TODAS_LAS_VENTAS = await obtenerVentasRemoto();
+      ventasCargadasAlgunaVez = true;
+      renderVentasList();
+    }catch(ex){
+      if(!ventasCargadasAlgunaVez){
+        const cont = document.getElementById('ventas-list');
+        if(cont) cont.innerHTML = `<div class="empty-state">No se pudieron cargar las ventas: ${escHtml_(ex.message)}</div>`;
+      } else {
+        showToast('No se pudo actualizar: ' + ex.message, true);
+      }
+    }finally{
+      if(icon) icon.classList.remove('spin');
+      if(btn) btn.disabled = false;
+    }
+  }
+
+  function renderVentasList(){
+    const cont = document.getElementById('ventas-list');
+    const meta = document.getElementById('ventas-meta');
+    if(!cont) return;
+    if(meta) meta.textContent = TODAS_LAS_VENTAS.length ? `${TODAS_LAS_VENTAS.length} venta${TODAS_LAS_VENTAS.length===1?'':'s'}` : '';
+    if(!TODAS_LAS_VENTAS.length){
+      cont.innerHTML = '<div class="empty-state">Todavía no hay ventas cargadas. Tocá "+ Nueva venta" para agregar la primera.</div>';
+      return;
+    }
+    // más nuevas primero
+    const ordenadas = [...TODAS_LAS_VENTAS].sort((a,b)=> String(b.fecha||'').localeCompare(String(a.fecha||'')));
+    const iconoDoc = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M14 2v6h6" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>';
+    cont.innerHTML = ordenadas.map((v,idx)=>{
+      const toneladasTxt = (v.toneladas != null && v.toneladas !== '') ? formatTon(Number(v.toneladas)) : 'Toneladas sin definir';
+      const metaBits = [
+        v.lote ? `Lote ${escHtml_(v.lote)}` : null,
+        v.destino ? escHtml_(v.destino) : null,
+      ].filter(Boolean).join(' · ');
+      return `
+        <button type="button" class="venta-card" data-idx="${idx}" style="animation-delay:${Math.min(idx*40,200)}ms">
+          <div class="venta-top">
+            <div class="venta-cliente">${escHtml_(v.cliente)}</div>
+            <div class="venta-fecha">${fechaVisual(v.fecha)}</div>
+          </div>
+          <div class="venta-meta">${toneladasTxt}${metaBits ? ' · ' + metaBits : ''}</div>
+          <div class="venta-badges">
+            ${v.tipoProducto ? `<span class="badge ${ventaTipoBadgeClass_(v.tipoProducto)}">${escHtml_(v.tipoProducto)}</span>` : ''}
+            <span class="badge ${ventaEstadoBadgeClass_(v.estado)}">${escHtml_(v.estado || 'Pendiente')}</span>
+          </div>
+          ${v.contratoUrl ? `<div class="venta-contrato-chip">${iconoDoc} Contrato cargado</div>` : ''}
+        </button>`;
+    }).join('');
+    cont.querySelectorAll('.venta-card').forEach(card=>{
+      card.addEventListener('click', ()=> abrirModalVentaDetalle(ordenadas[Number(card.dataset.idx)]));
+    });
+  }
+
+  function abrirModalVentaDetalle(v){
+    modalVolverA = null; // se abre siempre desde la lista principal
+    const body = document.getElementById('modal-body');
+    const campo = (k,val) => `<div class="modal-field"><span class="k">${k}</span><span class="v">${val}</span></div>`;
+    const contratoHtml = v.contratoUrl
+      ? `<a href="${escHtml_(v.contratoUrl)}" target="_blank" rel="noopener">${escHtml_(v.contratoNombre || 'Ver contrato')}</a>`
+      : 'Sin cargar';
+    body.innerHTML = `
+      <div class="modal-title">${escHtml_(v.cliente)}</div>
+      <div class="modal-subtitle">Venta del ${fechaVisual(v.fecha)}</div>
+      <div class="venta-badges" style="margin-bottom:12px;">
+        ${v.tipoProducto ? `<span class="badge ${ventaTipoBadgeClass_(v.tipoProducto)}">${escHtml_(v.tipoProducto)}</span>` : ''}
+        <span class="badge ${ventaEstadoBadgeClass_(v.estado)}">${escHtml_(v.estado || 'Pendiente')}</span>
+      </div>
+      ${campo('Toneladas', (v.toneladas!=null && v.toneladas!=='') ? formatTon(Number(v.toneladas)) : 'Sin definir')}
+      ${campo('Tipo de bolsa', v.tipoBolsa || '—')}
+      ${campo('Pallet o piso', v.palletOPiso || '—')}
+      ${campo('Lote', v.lote || '—')}
+      ${campo('Destino', v.destino || '—')}
+      ${campo('Encargado', v.encargado || '—')}
+      ${campo('Contrato', contratoHtml)}
+      ${campo('Observaciones', v.obs || '—')}
+      <button type="button" class="submit-btn" id="venta-edit-btn" style="margin-top:14px;">Editar venta</button>
+      <button type="button" class="submit-btn" id="venta-delete-btn" style="background:var(--critical-bg);color:var(--critical);margin-top:8px;">Eliminar venta</button>
+    `;
+    document.getElementById('venta-edit-btn').addEventListener('click', ()=> abrirModalVenta(v));
+    document.getElementById('venta-delete-btn').addEventListener('click', ()=> eliminarVentaConfirm_(v));
+    document.getElementById('lote-modal').classList.add('visible');
+    actualizarBotonModalCerrar_();
+  }
+
+  async function eliminarVentaConfirm_(v){
+    if(!confirm(`¿Eliminar la venta de ${v.cliente}? Esta acción no se puede deshacer.`)) return;
+    try{
+      await eliminarVentaRemoto(v.id);
+      TODAS_LAS_VENTAS = TODAS_LAS_VENTAS.filter(x => x.id !== v.id);
+      cerrarModalDelTodo();
+      renderVentasList();
+      showToast('Venta eliminada');
+    }catch(ex){
+      showToast('No se pudo eliminar: ' + ex.message, true);
+    }
+  }
+
+  function abrirModalVenta(ventaExistente){
+    const esNueva = !ventaExistente;
+    ventaArchivoContratoBase64_ = null;
+    ventaArchivoContratoNombre_ = null;
+    const body = document.getElementById('modal-body');
+    const opcionesTipo = ['', ...VENTA_TIPOS_PRODUCTO].map(t=>
+      `<option value="${t}" ${(ventaExistente && ventaExistente.tipoProducto===t) ? 'selected':''}>${t || 'Sin definir'}</option>`).join('');
+    const opcionesEstado = VENTA_ESTADOS.map(e=>
+      `<option value="${e}" ${(ventaExistente ? ventaExistente.estado===e : e==='Pendiente') ? 'selected':''}>${e}</option>`).join('');
+    const opcionesPallet = ['', ...VENTA_PALLET_PISO].map(p=>
+      `<option value="${p}" ${(ventaExistente && ventaExistente.palletOPiso===p) ? 'selected':''}>${p || 'Sin definir'}</option>`).join('');
+    const datalistBolsa = VENTA_TIPO_BOLSA_SUGERENCIAS.map(s=>`<option value="${escHtml_(s)}">`).join('');
+    const contratoActualHtml = (ventaExistente && ventaExistente.contratoUrl)
+      ? `<div class="fc-actual"><a href="${escHtml_(ventaExistente.contratoUrl)}" target="_blank" rel="noopener">${escHtml_(ventaExistente.contratoNombre || 'Contrato actual')}</a> — elegí otro archivo para reemplazarlo</div>`
+      : '';
+
+    body.innerHTML = `
+      <div class="modal-title">${esNueva ? 'Nueva venta' : 'Editar venta'}</div>
+      <div class="field">
+        <label>Cliente</label>
+        <input type="text" id="v-cliente" required>
+      </div>
+      <div class="field">
+        <label>Tipo de producto</label>
+        <select id="v-tipo-producto">${opcionesTipo}</select>
+      </div>
+      <div class="field">
+        <label>Toneladas <span class="hint">(opcional, se puede cargar después)</span></label>
+        <input type="number" id="v-toneladas" step="0.01" min="0" inputmode="decimal">
+      </div>
+      <div class="field">
+        <label>Tipo de bolsa</label>
+        <input type="text" id="v-tipo-bolsa" list="v-tipo-bolsa-sug">
+        <datalist id="v-tipo-bolsa-sug">${datalistBolsa}</datalist>
+      </div>
+      <div class="field">
+        <label>Pallet o piso</label>
+        <select id="v-pallet-piso">${opcionesPallet}</select>
+      </div>
+      <div class="field">
+        <label>Lote</label>
+        <input type="text" id="v-lote">
+      </div>
+      <div class="field">
+        <label>Destino</label>
+        <input type="text" id="v-destino">
+      </div>
+      <div class="field">
+        <label>Estado</label>
+        <select id="v-estado">${opcionesEstado}</select>
+      </div>
+      <div class="field">
+        <label>Contrato (PDF)</label>
+        <div class="file-field">
+          ${contratoActualHtml}
+          <input type="file" id="v-contrato" accept="application/pdf">
+        </div>
+      </div>
+      <div class="field">
+        <label>Observaciones</label>
+        <textarea id="v-obs" rows="3"></textarea>
+      </div>
+      <div class="error-msg" id="v-error"></div>
+      <button type="button" class="submit-btn" id="v-guardar-btn">Guardar venta</button>
+      <button type="button" class="submit-btn" id="v-cancelar-btn" style="background:var(--surface-2);color:var(--text-primary);margin-top:8px;">Cancelar</button>
+    `;
+
+    if(ventaExistente){
+      document.getElementById('v-cliente').value = ventaExistente.cliente || '';
+      document.getElementById('v-toneladas').value = (ventaExistente.toneladas!=null && ventaExistente.toneladas!=='') ? ventaExistente.toneladas : '';
+      document.getElementById('v-tipo-bolsa').value = ventaExistente.tipoBolsa || '';
+      document.getElementById('v-lote').value = ventaExistente.lote || '';
+      document.getElementById('v-destino').value = ventaExistente.destino || '';
+      document.getElementById('v-obs').value = ventaExistente.obs || '';
+    }
+
+    document.getElementById('v-contrato').addEventListener('change', async function(e){
+      const f = e.target.files[0];
+      if(!f){ ventaArchivoContratoBase64_ = null; ventaArchivoContratoNombre_ = null; return; }
+      if(f.type !== 'application/pdf'){
+        showToast('El contrato tiene que ser un archivo PDF', true);
+        e.target.value = '';
+        return;
+      }
+      try{
+        ventaArchivoContratoBase64_ = await archivoABase64_(f);
+        ventaArchivoContratoNombre_ = f.name;
+      }catch(ex){
+        showToast('No se pudo leer el archivo', true);
+      }
+    });
+
+    document.getElementById('v-guardar-btn').addEventListener('click', ()=> guardarVenta_(ventaExistente));
+    document.getElementById('v-cancelar-btn').addEventListener('click', ()=>{
+      if(ventaExistente) abrirModalVentaDetalle(ventaExistente); else cerrarModalDelTodo();
+    });
+
+    modalVolverA = ventaExistente ? (()=> abrirModalVentaDetalle(ventaExistente)) : null;
+    document.getElementById('lote-modal').classList.add('visible');
+    actualizarBotonModalCerrar_();
+  }
+
+  function archivoABase64_(file){
+    return new Promise((resolve, reject)=>{
+      const reader = new FileReader();
+      reader.onload = () => {
+        // reader.result viene como "data:application/pdf;base64,XXXX" — solo
+        // hace falta la parte de después de la coma.
+        const b64 = String(reader.result).split(',')[1] || '';
+        resolve(b64);
+      };
+      reader.onerror = () => reject(reader.error || new Error('Error al leer el archivo'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function guardarVenta_(ventaExistente){
+    const err = document.getElementById('v-error');
+    err.style.display = 'none';
+    const cliente = document.getElementById('v-cliente').value.trim();
+    if(!cliente){
+      err.textContent = 'Falta el nombre del Cliente.';
+      err.style.display = 'block';
+      return;
+    }
+    const fields = {
+      cliente,
+      tipoProducto: document.getElementById('v-tipo-producto').value,
+      toneladas: document.getElementById('v-toneladas').value.trim(),
+      tipoBolsa: document.getElementById('v-tipo-bolsa').value.trim(),
+      palletOPiso: document.getElementById('v-pallet-piso').value,
+      lote: document.getElementById('v-lote').value.trim(),
+      destino: document.getElementById('v-destino').value.trim(),
+      estado: document.getElementById('v-estado').value,
+      obs: document.getElementById('v-obs').value.trim(),
+    };
+
+    const btn = document.getElementById('v-guardar-btn');
+    btn.disabled = true; btn.textContent = 'Guardando...';
+    try{
+      let id;
+      if(ventaExistente){
+        id = ventaExistente.id;
+        await actualizarVentaRemoto(id, fields);
+      } else {
+        const resultado = await crearVentaRemoto(fields);
+        id = resultado.id;
+      }
+
+      let contratoUrl = ventaExistente ? ventaExistente.contratoUrl : '';
+      let contratoNombre = ventaExistente ? ventaExistente.contratoNombre : '';
+      if(ventaArchivoContratoBase64_){
+        btn.textContent = 'Subiendo contrato...';
+        const resultadoContrato = await subirContratoVentaRemoto(id, ventaArchivoContratoBase64_, ventaArchivoContratoNombre_ || 'contrato.pdf');
+        contratoUrl = resultadoContrato.url;
+        contratoNombre = resultadoContrato.nombre;
+      }
+
+      const ventaActualizada = Object.assign({}, ventaExistente, fields, { id, contratoUrl, contratoNombre });
+
+      if(ventaExistente){
+        const idx = TODAS_LAS_VENTAS.findIndex(x => x.id === id);
+        if(idx >= 0) TODAS_LAS_VENTAS[idx] = ventaActualizada;
+      } else {
+        TODAS_LAS_VENTAS.push(Object.assign({ fecha: new Date().toISOString().slice(0,10), encargado: '' }, ventaActualizada));
+      }
+
+      ventaArchivoContratoBase64_ = null;
+      ventaArchivoContratoNombre_ = null;
+      cerrarModalDelTodo();
+      renderVentasList();
+      showToast(ventaExistente ? 'Venta actualizada' : 'Venta creada');
+    }catch(ex){
+      btn.disabled = false; btn.textContent = 'Guardar venta';
+      err.textContent = 'No se pudo guardar: ' + ex.message;
+      err.style.display = 'block';
+    }
+  }
+
   // ---------- login / sesión / enrutado por rol ----------
   // Este bloque es lo único nuevo de la parte de "login con roles": todo lo
   // de arriba (Producción) sigue igual que siempre, solo que ahora no
@@ -2022,6 +2428,7 @@
       const s = getSesion();
       const el = document.getElementById('comercial-subtitle');
       if(el && s) el.textContent = 'Hola, ' + (s.nombre || s.usuario);
+      cargarVentas();
     } else {
       const s = getSesion();
       const el = document.getElementById('produccion-subtitle');
