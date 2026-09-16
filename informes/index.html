@@ -1933,10 +1933,14 @@
     try {
       const base = location.href.split('#')[0];
       history.pushState({ gpApp: true }, '', base + '#gpapp');
+      backDebugPush_++;
+      actualizarBackDebug_();
     } catch(e){}
   }
 
   window.addEventListener('popstate', function(){
+    backDebugPop_++;
+    actualizarBackDebug_('pop');
     if(haySubvistaAbierta_()){
       cerrarUnNivel_();
       rearmarHistorialAtras_();
@@ -1960,7 +1964,39 @@
     }, 2000);
   });
 
-  rearmarHistorialAtras_();
+  // ---------- diagnóstico TEMPORAL del botón atrás ----------
+  // Un texto chiquito en la esquina para poder confirmar, mirando la
+  // pantalla (o un video), si este código realmente llega a correr y si el
+  // "Atrás" del teléfono efectivamente le está avisando a la página (evento
+  // popstate) antes de que Android cierre la app. Sacar esto una vez que el
+  // botón atrás ya ande bien.
+  let backDebugPush_ = 0;
+  let backDebugPop_ = 0;
+  function actualizarBackDebug_(origen){
+    try {
+      let el = document.getElementById('back-debug-tmp');
+      if(!el){
+        el = document.createElement('div');
+        el.id = 'back-debug-tmp';
+        el.style.cssText = 'position:fixed;left:4px;bottom:4px;z-index:99999;background:rgba(0,0,0,0.55);color:#8f8;font-size:9px;line-height:1.3;padding:2px 5px;border-radius:4px;pointer-events:none;font-family:monospace;';
+        document.body.appendChild(el);
+      }
+      el.textContent = 'BB v49 push=' + backDebugPush_ + ' pop=' + backDebugPop_ + (origen ? ' (' + origen + ')' : '') + ' len=' + history.length;
+    } catch(e){}
+  }
+
+  // Esperamos a que la navegación inicial esté 100% asentada antes de meter
+  // el primer pushState (hacerlo demasiado pronto, mientras la página
+  // todavía está cargando, puede hacer que Android no lo cuente bien).
+  function armarHistorialInicial_(){
+    rearmarHistorialAtras_();
+    actualizarBackDebug_('init');
+  }
+  if(document.readyState === 'complete'){
+    setTimeout(armarHistorialInicial_, 50);
+  } else {
+    window.addEventListener('load', ()=> setTimeout(armarHistorialInicial_, 50));
+  }
 
   // ---------- service worker: permite abrir la app sin conexión ----------
   // Además, cuando se publica una versión nueva, la app se actualiza sola la
