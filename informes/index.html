@@ -2071,6 +2071,15 @@
     return tipo === 'Orgánico' ? 'tipo-organico' : 'tipo-convencional';
   }
 
+  // Saca el ID de archivo de una URL de Drive tipo
+  // "https://drive.google.com/file/d/XXXX/view", para poder armar la URL
+  // "/preview" (la que se puede embeber en un iframe) del mismo archivo.
+  function extraerDriveFileId_(url){
+    if(!url) return null;
+    const m = String(url).match(/\/file\/d\/([^/]+)/);
+    return m ? m[1] : null;
+  }
+
   // Muestra la lista de ventas (pantalla completa) y oculta el detalle/form,
   // si estuviera abierto — mismo criterio que volverAGridCalidad_.
   function volverAListaVentas_(){
@@ -2152,9 +2161,18 @@
     grid.classList.add('hidden');
     detalle.classList.remove('hidden');
     const campo = (k,val) => `<div class="modal-field"><span class="k">${k}</span><span class="v">${val}</span></div>`;
+    const contratoFileId = extraerDriveFileId_(v.contratoUrl);
     const contratoHtml = v.contratoUrl
       ? `<a href="${escHtml_(v.contratoUrl)}" target="_blank" rel="noopener">${escHtml_(v.contratoNombre || 'Ver contrato')}</a>`
       : 'Sin cargar';
+    // Vista previa embebida del PDF (visor de Google Drive dentro de un
+    // iframe) — desde ahí también se puede descargar/imprimir, son los
+    // controles propios del visor de Drive, no algo que armamos nosotros.
+    const contratoPreviewHtml = contratoFileId ? `
+      <div style="margin-top:10px;">
+        <iframe src="https://drive.google.com/file/d/${escHtml_(contratoFileId)}/preview" style="width:100%;height:60vh;min-height:320px;border:1px solid var(--gridline);border-radius:10px;background:var(--surface-2);" allow="autoplay" title="Vista previa del contrato"></iframe>
+      </div>
+    ` : '';
     detalle.innerHTML = `
       <button type="button" class="calidad-volver" id="venta-detalle-volver-btn">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -2174,6 +2192,7 @@
         ${campo('Destino', v.destino || '—')}
         ${campo('Encargado', v.encargado || '—')}
         ${campo('Contrato', contratoHtml)}
+        ${contratoPreviewHtml}
         ${campo('Observaciones', v.obs || '—')}
         <button type="button" class="submit-btn" id="venta-edit-btn" style="margin-top:14px;">Editar venta</button>
         <button type="button" class="submit-btn" id="venta-delete-btn" style="background:var(--critical-bg);color:var(--critical);margin-top:8px;">Eliminar venta</button>
