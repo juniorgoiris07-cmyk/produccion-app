@@ -2864,11 +2864,11 @@
     }
   }
 
-  // ---------- login / sesión / enrutado por rol ----------
+  // ---------- login / sesión / enrutado por secciones habilitadas ----------
   // Este bloque es lo único nuevo de la parte de "login con roles": todo lo
   // de arriba (Producción) sigue igual que siempre, solo que ahora no
-  // arranca solo — arranca cuando enrutarPorRol()/irASeccion() lo llaman,
-  // después de un login válido.
+  // arranca solo — arranca cuando enrutarPorSecciones()/irASeccion() lo
+  // llaman, después de un login válido.
   const SESION_KEY = 'gp_sesion';
   function getSesion(){ try { return JSON.parse(localStorage.getItem(SESION_KEY)); } catch(e){ return null; } }
   function setSesion(s){ localStorage.setItem(SESION_KEY, JSON.stringify(s)); }
@@ -2903,16 +2903,46 @@
     }
   }
 
+  // ---------- a qué secciones puede entrar cada usuario ----------
+  // Esto ahora se decide por persona, no por "rol" fijo: cada fila de la
+  // hoja "Usuarios" tiene una columna Secciones (ver Code.gs de Comercial)
+  // con los nombres separados por coma (ej "produccion,comercial") o la
+  // palabra especial "todos". El backend la manda tal cual en `secciones`
+  // al loguearse/verificar sesión; acá se interpreta.
+  function parseSecciones_(raw){
+    const r = String(raw || '').trim().toLowerCase();
+    if(!r) return ['produccion']; // red de seguridad: nunca 0 secciones
+    if(r === 'todos') return todasLasSeccionesQueExisten_();
+    return r.split(',').map(x=>x.trim()).filter(Boolean);
+  }
+
+  // Se leen los botones que hay en el switcher en vez de tener una lista
+  // fija acá — así, si el día de mañana se agrega una 4ta sección (un
+  // nuevo botón con su data-seccion), alguien marcado como "todos" en la
+  // planilla la ve sola, sin tener que tocar este código de nuevo.
+  function todasLasSeccionesQueExisten_(){
+    return [...document.querySelectorAll('.seccion-btn')].map(b=>b.dataset.seccion);
+  }
+
+  function seccionesDeSesion_(s){
+    return parseSecciones_(s && s.secciones);
+  }
+
+  function puedeVerSeccion_(s, seccion){
+    return seccionesDeSesion_(s).includes(seccion);
+  }
+
   function mostrarSeccionSwitcher(){
     const s = getSesion();
     const sw = document.getElementById('seccion-switcher');
-    const esAdmin = s && s.rol === 'admin';
-    const puedeVerLasDos = s && (s.rol === 'admin' || s.rol === 'comercial');
-    sw.classList.toggle('hidden', !puedeVerLasDos);
-    // "Panel General" es exclusivo de Admin — Comercial sigue viendo solo
-    // los botones de Producción/Comercial, como hasta ahora.
-    const btnGeneral = document.getElementById('seccion-btn-general');
-    if(btnGeneral) btnGeneral.classList.toggle('hidden', !esAdmin);
+    const secciones = s ? seccionesDeSesion_(s) : [];
+    // El switcher (los botones para saltar de una sección a otra) solo
+    // tiene sentido mostrarlo si hay más de una sección habilitada — a
+    // alguien con una sola no le sirve de nada verlo.
+    sw.classList.toggle('hidden', secciones.length <= 1);
+    document.querySelectorAll('.seccion-btn').forEach(b=>{
+      b.classList.toggle('hidden', !secciones.includes(b.dataset.seccion));
+    });
   }
 
   // Deja el formulario de login limpio y sin mensajes de error viejos, para
@@ -2935,11 +2965,23 @@
     mostrarPantalla('login-screen');
   }
 
-  // Muestra la sección de Producción o la de Comercial (según a cuál se
-  // quiera ir) — la usan tanto el enrutado automático después del login
-  // como los botones del switcher (que solo ve Admin, para poder pasar de
-  // una sección a la otra sin tener que volver a loguearse).
+  // Prioridad de aterrizaje: a qué sección entra alguien que tiene más de
+  // una habilitada. Fijo y predecible (Producción primero, como siempre),
+  // sin depender del orden en que se hayan escrito en la planilla.
+  const ORDEN_ATERRIZAJE_SECCIONES = ['produccion', 'comercial', 'general'];
+
+  // Muestra la sección pedida (Producción / Comercial / Panel General) —
+  // la usan tanto el enrutado automático después del login como los
+  // botones del switcher. Si por algún motivo se pide una sección que esta
+  // persona no tiene habilitada (no debería pasar, ya que el botón
+  // correspondiente queda oculto, pero por las dudas), cae a la primera
+  // que sí tenga en vez de mostrar una pantalla a la que no debería entrar.
   function irASeccion(seccion){
+    const s0 = getSesion();
+    if(s0 && !puedeVerSeccion_(s0, seccion)){
+      const secciones = seccionesDeSesion_(s0);
+      seccion = ORDEN_ATERRIZAJE_SECCIONES.find(x => secciones.includes(x)) || secciones[0] || 'produccion';
+    }
     mostrarSeccionSwitcher();
     document.querySelectorAll('.seccion-btn').forEach(b=> b.classList.toggle('activa', b.dataset.seccion===seccion));
     if(seccion === 'comercial'){
@@ -2963,8 +3005,22 @@
     }
   }
 
-  function enrutarPorRol(rol){
-    irASeccion(rol === 'comercial' ? 'comercial' : 'produccion');
+  // A qué sección ATERRIZA cada quien apenas entra — esto es distinto de
+  // "a qué secciones puede entrar" (eso es `secciones`, ver arriba). Se
+  // sigue basando en el Rol de toda la vida (comercial aterriza en
+  // Comercial, todo el resto en Producción) para no cambiarle el
+  // comportamiento a nadie que ya usaba la app — la columna Secciones solo
+  // agrega o saca accesos al switcher, no cambia dónde entra cada quien.
+  // Si por algún motivo la sección preferida no está entre sus secciones
+  // habilitadas (ej. alguien "comercial" al que le sacaron Comercial a
+  // mano en la planilla), cae a la primera que sí tenga.
+  function enrutarPorSecciones(seccionesRaw, rol){
+    const secciones = parseSecciones_(seccionesRaw);
+    const preferida = rol === 'comercial' ? 'comercial' : 'produccion';
+    const destino = secciones.includes(preferida)
+      ? preferida
+      : (ORDEN_ATERRIZAJE_SECCIONES.find(x => secciones.includes(x)) || secciones[0] || 'produccion');
+    irASeccion(destino);
   }
 
   document.getElementById('login-form').addEventListener('submit', async function(e){
@@ -2979,8 +3035,8 @@
     try{
       const data = await loginRemoto(usuario, contrasena);
       if(!data.ok) throw new Error(data.error || 'Usuario o contraseña incorrectos');
-      setSesion({ token: data.token, rol: data.rol, nombre: data.nombre, usuario: data.usuario });
-      enrutarPorRol(data.rol);
+      setSesion({ token: data.token, rol: data.rol, nombre: data.nombre, usuario: data.usuario, secciones: data.secciones });
+      enrutarPorSecciones(data.secciones, data.rol);
     }catch(ex){
       btn.disabled = false; btn.textContent = 'Ingresar';
       err.textContent = 'No se pudo iniciar sesión: ' + ex.message;
@@ -3005,10 +3061,14 @@
     try{
       const data = await verificarSesionRemota(s.token);
       if(!data.ok){ clearSesion(); mostrarPantalla('login-screen'); return; }
-      setSesion({ token: s.token, rol: data.rol, nombre: data.nombre, usuario: data.usuario });
-      enrutarPorRol(data.rol);
+      setSesion({ token: s.token, rol: data.rol, nombre: data.nombre, usuario: data.usuario, secciones: data.secciones });
+      enrutarPorSecciones(data.secciones, data.rol);
     }catch(ex){
-      enrutarPorRol(s.rol);
+      // Sin señal para validar contra el backend: confía en lo que ya
+      // tenía guardado en este aparato de la última vez (secciones
+      // incluidas), en vez de dejar a la persona sin poder trabajar
+      // offline solo porque no hay señal al abrir la app.
+      enrutarPorSecciones(s.secciones, s.rol);
     }
   })();
 </script>
