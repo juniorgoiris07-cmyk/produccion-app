@@ -48,6 +48,28 @@
     body{padding:28px 16px;}
     .app-shell{min-height:0;border-radius:16px;box-shadow:var(--shadow-md);border:1px solid var(--gridline);overflow:hidden;}
   }
+  /* ===== Tablet parada (~700-899px, ej. 11" en vertical) ===== */
+  /* Todavía en una sola columna (a ese ancho, dos columnas quedarían muy
+     apretadas), pero la tarjeta se ensancha para no dejar tanto margen
+     muerto a los costados como en el celular. */
+  @media(min-width:700px) and (max-width:899px){
+    .app-shell{max-width:720px;}
+    section{padding:22px 26px 44px;}
+    .card{padding:22px 26px;}
+  }
+  /* ===== Tablet (~900px+, ej. 11" en horizontal) ===== */
+  /* El resto de la app queda igual (mismos ids, misma lógica) — acá solo se
+     ensancha la tarjeta y el formulario pasa de una columna larga a dos
+     columnas lado a lado, para aprovechar el ancho real de una tablet en
+     vez de mostrar la app de celular flotando angosta en el medio. */
+  @media(min-width:900px){
+    body{padding:36px 24px;}
+    .app-shell{max-width:1120px;}
+    header.appbar{padding:26px 32px 24px;}
+    section{padding:24px 32px 48px;}
+    .card{padding:26px 32px;}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 32px;align-items:start;}
+  }
   header.appbar{position:relative;overflow:hidden;padding:22px 20px 20px;color:#fff;background:linear-gradient(135deg,var(--ink-1) 0%,var(--ink-2) 100%);border-bottom:2px solid var(--series-1);}
   header.appbar::before{content:'';position:absolute;top:-46px;right:-36px;width:170px;height:170px;background:radial-gradient(circle,rgba(255,222,90,0.16) 0%,rgba(255,222,90,0) 70%);pointer-events:none;}
   header.appbar::after{content:'';position:absolute;bottom:-64px;left:-28px;width:150px;height:150px;background:radial-gradient(circle,rgba(255,222,90,0.10) 0%,rgba(255,222,90,0) 70%);pointer-events:none;}
@@ -100,6 +122,7 @@
 
   .recientes-titulo{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin:22px 0 10px;}
   .recientes-list{display:flex;flex-direction:column;gap:8px;}
+  @media(min-width:900px){.recientes-list{display:grid;grid-template-columns:1fr 1fr;gap:10px;}}
   .reciente-item{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--gridline);border-radius:9px;padding:9px 11px;box-shadow:var(--shadow-sm);cursor:pointer;transition:border-color .15s ease, box-shadow .15s ease;}
   .reciente-item:hover{border-color:var(--series-1);box-shadow:var(--shadow-md);}
   .reciente-bb{flex-shrink:0;width:38px;height:38px;border-radius:9px;background:rgba(var(--series-1-rgb),.12);color:var(--series-1-ink);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;}
@@ -119,6 +142,7 @@
   .modal-overlay.visible{opacity:1;visibility:visible;pointer-events:auto;transition:opacity .22s ease,visibility 0s linear 0s;}
   .modal-card{background:var(--card);border-radius:14px;width:100%;max-width:420px;max-height:88vh;overflow-y:auto;padding:20px;position:relative;box-shadow:0 16px 40px rgba(20,20,15,0.22);transform:translateY(16px) scale(.96);opacity:0;transition:transform .28s cubic-bezier(.2,.8,.2,1),opacity .22s ease;}
   .modal-overlay.visible .modal-card{transform:translateY(0) scale(1);opacity:1;}
+  @media(min-width:900px){.modal-card{max-width:560px;}}
   .modal-close{position:absolute;top:12px;right:12px;border:1px solid var(--gridline);background:var(--surface-2);color:var(--text-primary);width:30px;height:30px;border-radius:50%;font-size:15px;cursor:pointer;line-height:1;transition:background-color .15s ease;}
   .modal-close:hover{background:var(--gridline);}
   .modal-title{font-size:17px;font-weight:700;margin:0 0 2px;padding-right:34px;letter-spacing:-.01em;}
@@ -181,6 +205,8 @@
 
       <div class="card">
         <form id="carga-form">
+          <div class="form-grid">
+          <div class="form-col">
 
           <div class="grupo-titulo">Identificación</div>
           <div class="fila-2">
@@ -227,6 +253,9 @@
             <input type="number" id="c-bb" min="1" step="1" required>
           </div>
 
+          </div>
+          <div class="form-col">
+
           <div class="grupo-titulo">Mediciones</div>
           <div class="fila-2">
             <div class="field">
@@ -267,6 +296,9 @@
           <div class="field">
             <label>Observaciones</label>
             <textarea id="c-obs"></textarea>
+          </div>
+
+          </div>
           </div>
 
           <button type="submit" class="submit-btn" id="submit-btn">Registrar bigbag</button>
