@@ -472,7 +472,7 @@
           <span class="vmc-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 20V10M12 20V4M20 20v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
           <span class="vmc-label">Producción</span>
         </button>
-        <button type="button" class="vista-menu-card" data-vista="cierre">
+        <button type="button" class="vista-menu-card hidden" id="vista-menu-cierre-btn" data-vista="cierre">
           <span class="vmc-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/></svg></span>
           <span class="vmc-label">Cierre de Lotes</span>
         </button>
@@ -905,6 +905,7 @@
   function iniciar(){
     if(!getWebAppUrl()){ mostrarPantalla('setup-screen'); return; }
     mostrarPantalla('app-screen');
+    actualizarVisibilidadCierre_();
     mostrarCargandoInicial();
     recargarDatos();
   }
@@ -947,6 +948,10 @@
   let vistaActual = null;
 
   function cambiarVista(v){
+    if(v === 'cierre' && !puedeCerrarLotes_()){
+      showToast('No tenés permiso para el Cierre de Lotes.', true);
+      v = null; // se queda en el menú en vez de entrar
+    }
     vistaActual = v;
     const enMenu = !v;
     document.getElementById('vista-menu-grid').classList.toggle('hidden', !enMenu);
@@ -2158,6 +2163,11 @@
   async function guardarCierre_(g, cierreExistente, nombreUsuario){
     const err = document.getElementById('c-error');
     err.style.display = 'none';
+    if(!puedeCerrarLotes_()){
+      err.textContent = 'No tenés permiso para el Cierre de Lotes.';
+      err.style.display = 'block';
+      return;
+    }
     const categoria = document.getElementById('c-categoria').value;
     const volMateriaPrima = document.getElementById('c-vol-materia-prima').value.trim();
     const volProductoTerminado = document.getElementById('c-vol-producto-terminado').value.trim();
@@ -2222,6 +2232,7 @@
 
   async function eliminarCierre_(cierreExistente){
     if(!cierreExistente) return;
+    if(!puedeCerrarLotes_()){ showToast('No tenés permiso para el Cierre de Lotes.', true); return; }
     if(!confirm('¿Eliminar este cierre? El lote vuelve a quedar abierto (provisorio) en toda la app.')) return;
     try{
       await eliminarCierreRemoto(cierreExistente.id);
@@ -2244,15 +2255,16 @@
       bloques.push(construirBloque_(g.lote, Math.floor(i/BIGBAGS_POR_BLOQUE)+1, grupo));
     }
     const tonReal = toneladasDeLote_(g.lote, g.bbs);
+    const tieneCierreOk = puedeCerrarLotes_();
     const cierreBox = g.cierre
       ? `<div class="lote-promedio-box"><div class="lote-promedio-titulo">✓ Lote cerrado — peso real cargado</div>
           <div class="modal-field"><span class="k">Producto Terminado Ajustado</span><span class="v">${formatTon(tonReal)}</span></div>
           <div class="modal-field"><span class="k">Rendimiento</span><span class="v">${g.cierre.rendimiento!=null ? g.cierre.rendimiento.toFixed(2)+'%' : '—'}</span></div>
           <div class="modal-field"><span class="k">Cerrado por</span><span class="v">${escHtml_(g.cierre.usuario||'—')} · ${fechaVisual(g.cierre.fecha)}</span></div>
         </div>
-        <button type="button" class="submit-btn" id="lote-ver-cierre-btn" style="background:var(--surface-2);color:var(--text-primary);">Ver / editar cierre</button>`
+        ${tieneCierreOk ? `<button type="button" class="submit-btn" id="lote-ver-cierre-btn" style="background:var(--surface-2);color:var(--text-primary);">Ver / editar cierre</button>` : ''}`
       : `<div class="error-msg" style="display:block;background:var(--gold-bg);color:var(--series-1-ink);border-color:var(--series-1);">Este lote todavía está abierto — el tonelaje de arriba es el estimado provisorio (bigbags × 1t), no el peso real.</div>
-        <button type="button" class="submit-btn" id="lote-cerrar-btn">Cerrar este lote</button>`;
+        ${tieneCierreOk ? `<button type="button" class="submit-btn" id="lote-cerrar-btn">Cerrar este lote</button>` : ''}`;
     body.innerHTML = `
       <div class="modal-title">Lote ${g.lote}</div>
       <div class="modal-subtitle">${g.productoReciente} · ${g.bbs.length} bigbag${g.bbs.length===1?'':'s'} · ${formatTon(tonReal)}${g.cierre?' (real)':' (estimado)'}</div>
@@ -3314,6 +3326,32 @@
 
   function puedeVerSeccion_(s, seccion){
     return seccionesDeSesion_(s).includes(seccion);
+  }
+
+  // ---------- permiso aparte para Cierre de Lotes ----------
+  // No es una "sección" más (no aparece en el switcher Producción/Comercial/
+  // Panel General) — es un permiso chico, adentro de Producción, que se
+  // asigna persona por persona en la misma columna Secciones de la hoja
+  // "Usuarios": agregándole "cierre" (ej. "produccion,cierre") esa persona
+  // puede cerrar lotes; sin eso, no. "todos" (el valor por defecto de un
+  // admin) ya lo incluye, para no dejar afuera sin querer a quien administra
+  // todo. Se revisa en cada acción sensible (no solo para mostrar/ocultar el
+  // botón), así una sesión vieja en el teléfono de alguien al que le sacaron
+  // el permiso no lo sigue teniendo.
+  function puedeCerrarLotes_(){
+    const s = getSesion();
+    if(!s) return false;
+    const raw = String(s.secciones || '').trim().toLowerCase();
+    if(raw === 'todos') return true;
+    return raw.split(',').map(x=>x.trim()).includes('cierre');
+  }
+
+  // Muestra u oculta el cuadro "Cierre de Lotes" del menú de Producción
+  // según ese permiso — se llama cada vez que se entra a Producción
+  // (iniciar()), para que quede bien apenas se loguea alguien.
+  function actualizarVisibilidadCierre_(){
+    const btn = document.getElementById('vista-menu-cierre-btn');
+    if(btn) btn.classList.toggle('hidden', !puedeCerrarLotes_());
   }
 
   function mostrarSeccionSwitcher(){
