@@ -1707,11 +1707,19 @@
     if(!cont || !nota) return;
     const grupos = agruparPorLotes(datos).filter(g => String(g.lote||'').trim() !== LOTE_EXCLUIDO_DE_RESUMEN);
 
-    let totalMateriaPrima = 0, totalTerminado = 0, lotesConMateriaPrima = 0;
+    // Nota importante: el producto terminado (y por lo tanto el rendimiento)
+    // solo se suma para lotes YA CERRADOS, igual que la app de referencia —
+    // el conteo de bigbags de un lote todavía en proceso no es un peso real
+    // de producto terminado, así que no debe mezclarse en este total.
+    let totalMateriaPrima = 0, totalTerminado = 0, lotesConMateriaPrima = 0, lotesPendientesCierre = 0;
     grupos.forEach(g=>{
       const mp = materiaPrimaDeLote_(g.lote);
       if(mp != null){ totalMateriaPrima += mp; lotesConMateriaPrima++; }
-      totalTerminado += g.cierre ? g.cierre.productoTerminadoAjustado : (g.bbs.length * TON_POR_BIGBAG * 1000);
+      if(g.cierre){
+        totalTerminado += g.cierre.productoTerminadoAjustado;
+      } else {
+        lotesPendientesCierre++;
+      }
     });
     const rendimiento = totalMateriaPrima > 0 ? (totalTerminado/totalMateriaPrima)*100 : null;
 
@@ -1730,9 +1738,12 @@
         ${t.unidad ? `<div class="resumen-tile-unidad">${t.unidad}</div>` : ''}
       </div>`).join('');
 
-    const faltantes = grupos.length - lotesConMateriaPrima;
-    nota.textContent = faltantes > 0
-      ? `${faltantes} lote${faltantes===1?'':'s'} todavía sin peso de materia prima cargado — no se cuenta${faltantes===1?'':'n'} en ese total hasta que se cargue desde Cierre de Lotes.`
+    const faltantesMP = grupos.length - lotesConMateriaPrima;
+    const partesNota = [];
+    if(faltantesMP > 0) partesNota.push(`${faltantesMP} lote${faltantesMP===1?'':'s'} todavía sin peso de materia prima cargado (no se cuenta${faltantesMP===1?'':'n'} en ese total hasta que se cargue desde Cierre de Lotes)`);
+    if(lotesPendientesCierre > 0) partesNota.push(`${lotesPendientesCierre} lote${lotesPendientesCierre===1?'':'s'} todavía sin cerrar (su producto terminado se suma recién al cerrar el lote)`);
+    nota.textContent = partesNota.length > 0
+      ? partesNota.join('. ') + '. Stock y Embarcado se van a poder calcular cuando la app lleve despachos por cliente.'
       : 'Stock y Embarcado se van a poder calcular cuando la app lleve despachos por cliente.';
   }
 
