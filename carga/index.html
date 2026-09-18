@@ -775,18 +775,18 @@
       .sort((a, b) => (Number(b.bb) || 0) - (Number(a.bb) || 0));
     // Los pendientes (sin subir todavía) se muestran SIEMPRE todos, sin
     // límite — son justamente los que hay que poder vigilar mientras se
-    // sincronizan. Los que ya están subidos solo completan el resto de la
-    // lista hasta el tamaño habitual, para no alargarla cuando no hay
-    // nada pendiente.
-    const huecoParaServidor = Math.max(CANTIDAD_RECIENTES - pendientesEnCurso.length, 0);
-    const ordenados = pendientesEnCurso.concat(delServidor.slice(0, huecoParaServidor));
+    // sincronizan. Los últimos subidos se muestran aparte, siempre hasta
+    // el tamaño habitual, para no perderlos de vista cuando hay muchos
+    // pendientes a la vez.
+    const ultimosSubidos = delServidor.slice(0, CANTIDAD_RECIENTES);
 
-    if(!ordenados.length){
+    if(!pendientesEnCurso.length && !ultimosSubidos.length){
       cont.innerHTML = '<div class="recientes-empty">Todavía no hay bigbags cargados.</div>';
       return;
     }
 
-    cont.innerHTML = ordenados.map(c => {
+    const subtituloEstilo = 'font-size:12px;color:#888;font-weight:600;margin:12px 0 4px;text-transform:uppercase;letter-spacing:.03em;';
+    const renderItem_ = c => {
       const bbTxt = (c.bb === '' || c.bb == null) ? '—' : c.bb;
       const horaTxt = c.hora || '—';
       const fechaTxt = c.fecha ? fechaVisualCorta_(c.fecha) : '';
@@ -806,7 +806,18 @@
         </div>
         <button type="button" class="reciente-delete" ${dataAttrs} data-resumen="${escHtml_('bigbag #' + bbTxt + ' del lote ' + (c.lote || ''))}" title="Eliminar" aria-label="Eliminar">✕</button>
       </div>`;
-    }).join('');
+    };
+
+    let html = '';
+    if(pendientesEnCurso.length){
+      html += `<div style="${subtituloEstilo}">Pendientes de subir (${pendientesEnCurso.length})</div>`;
+      html += pendientesEnCurso.map(renderItem_).join('');
+      if(ultimosSubidos.length){
+        html += `<div style="${subtituloEstilo}">Últimos subidos</div>`;
+      }
+    }
+    html += ultimosSubidos.map(renderItem_).join('');
+    cont.innerHTML = html;
   }
 
   document.getElementById('recientes-list').addEventListener('click', async function(e){
@@ -1174,7 +1185,12 @@
 
       let exito = false;
       try{
-        await crearCargaRemota(item.fields);
+        const resultado = await crearCargaRemota(item.fields);
+        // Se agrega al instante a "Últimos subidos" con el ID real que
+        // asignó el servidor — así queda una confirmación visible ahí
+        // mismo de que ESTE bigbag puntual ya se guardó bien, en vez de
+        // desaparecer sin más hasta el próximo refresco completo.
+        ULTIMO_LISTADO.push(Object.assign({}, item.fields, { id: resultado.id }));
         exito = true;
         subieron++;
       }catch(ex){

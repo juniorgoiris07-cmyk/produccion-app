@@ -5,7 +5,7 @@
 // interceptan acá (deben ir siempre a la red real) — la cola offline de
 // bigbags vive en index.html, no en el service worker.
 
-const CACHE_NAME = 'carga-produccion-v17';
+const CACHE_NAME = 'carga-produccion-v18';
 const ASSETS = [
   './',
   './index.html',
