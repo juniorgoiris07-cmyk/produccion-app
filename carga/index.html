@@ -495,7 +495,18 @@
     if(!getWebAppUrl()){ mostrarPantalla('setup-screen'); return; }
     mostrarPantalla('app-screen');
     sugerirCamposIniciales();
-    document.getElementById('recientes-list').innerHTML = '<div class="recientes-empty">Cargando...</div>';
+    // Mostrar de entrada lo que ya tenemos guardado localmente (bigbags
+    // pendientes de subir + el último listado que se pudo traer del
+    // servidor), en vez de dejar la pantalla en "Cargando..." mientras
+    // Apps Script responde — eso puede tardar bastante en frío y hacía
+    // que los pendientes tardaran mucho en aparecer.
+    const cacheRaw = localStorage.getItem(DATA_CACHE_KEY);
+    if(cacheRaw){
+      try{ aplicarSugerenciasListado(JSON.parse(cacheRaw).cargas || []); }
+      catch(e){ renderRecientes(); }
+    } else {
+      renderRecientes();
+    }
     cargarSugerencias();
     actualizarBannerConexion();
   }
