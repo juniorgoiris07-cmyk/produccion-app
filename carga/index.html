@@ -308,7 +308,10 @@
         </form>
       </div>
 
-      <div class="recientes-titulo">Últimos bigbags cargados</div>
+      <div class="recientes-titulo" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        <span>Últimos bigbags cargados</span>
+        <button type="button" id="sync-now-btn" style="background:none;border:1px solid #ccc;border-radius:6px;padding:4px 10px;font-size:12px;color:#555;cursor:pointer;white-space:nowrap;">Sincronizar ahora</button>
+      </div>
       <div class="recientes-list" id="recientes-list"></div>
     </section>
   </div>
@@ -566,6 +569,26 @@
       lineas.push(`Prueba 2 — alcance general a Google (sin pasar por la app): OK, ${Math.round(t1-t0)}ms`);
     }catch(ex){
       lineas.push(`Prueba 2 — alcance general a Google (sin pasar por la app): FALLÓ — ${ex.name}: ${ex.message}`);
+    }
+
+    lineas.push('');
+    if(url){
+      try{
+        const t0 = performance.now();
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: '__ping_test__' })
+        });
+        const t1 = performance.now();
+        const cuerpo = (await res.text()).slice(0, 150);
+        lineas.push(`Prueba 3 — pedido POST a la app (igual que al guardar un bigbag): OK, status ${res.status}, ${Math.round(t1-t0)}ms`);
+        lineas.push('Respuesta: ' + cuerpo);
+      }catch(ex){
+        lineas.push(`Prueba 3 — pedido POST a la app (igual que al guardar un bigbag): FALLÓ — ${ex.name}: ${ex.message}`);
+      }
+    } else {
+      lineas.push('Prueba 3: no se probó porque no hay URL cargada.');
     }
 
     return lineas.join('\n');
@@ -1245,6 +1268,25 @@
     if(navigator.onLine){ sincronizarPendientes(true).then(()=>sincronizarBorrados(true)).then(()=>sincronizarEdiciones(true)); }
     actualizarBannerConexion();
   }, 30000);
+
+  document.getElementById('sync-now-btn').addEventListener('click', async function(){
+    const btn = this;
+    const textoOriginal = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Sincronizando...';
+    try{
+      await sincronizarPendientes(false);
+      await sincronizarBorrados(false);
+      await sincronizarEdiciones(false);
+      if(!getPendientes().length && !getPendientesBorrado().length && !getPendientesEdicion().length){
+        showToast('Todo sincronizado');
+      }
+    } finally {
+      btn.disabled = false;
+      btn.textContent = textoOriginal;
+      actualizarBannerConexion();
+    }
+  });
 
   function showToast(msg, isError, isWarn){
     const t = document.getElementById('toast');
