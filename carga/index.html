@@ -445,13 +445,29 @@
 
   async function crearCargaRemota(fields){
     const url = getWebAppUrl();
-    // Content-Type: text/plain evita que el navegador dispare un preflight
-    // CORS que Apps Script no siempre responde bien.
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(Object.assign({ action: 'create' }, fields))
-    });
+    // Corte manual del pedido si tarda demasiado (Apps Script "en frío"
+    // puede tardar más de 30s): así un bigbag trabado no se queda
+    // colgado para siempre ni bloquea a los demás en la cola.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 45000);
+    let res;
+    try{
+      // Content-Type: text/plain evita que el navegador dispare un preflight
+      // CORS que Apps Script no siempre responde bien.
+      res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(Object.assign({ action: 'create' }, fields)),
+        signal: controller.signal
+      });
+    }catch(ex){
+      if(ex.name === 'AbortError'){
+        throw new Error('El servidor tardó demasiado en responder (puede estar ocupado) — se va a reintentar solo.');
+      }
+      throw ex;
+    }finally{
+      clearTimeout(timeoutId);
+    }
     if(!res.ok) throw new Error(`Error ${res.status}`);
     const data = await res.json();
     if(!data.ok) throw new Error(data.error || 'No se pudo guardar el bigbag.');
@@ -1056,23 +1072,27 @@
     flushEnCurso = true;
 
     let subieron = 0;
-    let cortarPorRed = false;
     const restantes = [];
 
     for(const item of pendientes){
-      if(cortarPorRed){ restantes.push(item); continue; }
+      if(!navigator.onLine){
+        // Sin conexión real: no tiene sentido seguir intentando ahora: se
+        // reintentan solos cuando vuelva la señal.
+        restantes.push(item);
+        continue;
+      }
       try{
         await crearCargaRemota(item.fields);
         subieron++;
       }catch(ex){
-        if(esErrorDeRed(ex)){
-          cortarPorRed = true;
-          restantes.push(item);
-        } else {
-          item.estado = 'error';
-          item.errorMsg = ex.message || 'Error desconocido';
-          restantes.push(item);
-        }
+        // Hay señal, pero este bigbag puntual falló (puede ser un rechazo
+        // real del servidor, o que se cortó/tardó demasiado a mitad de
+        // camino). No se corta el resto de la cola por esto — se marca
+        // este ítem con el motivo y se sigue con los demás, así un bigbag
+        // trabado no bloquea a todos los otros pendientes.
+        item.estado = 'error';
+        item.errorMsg = ex.message || 'Error desconocido';
+        restantes.push(item);
       }
     }
 
