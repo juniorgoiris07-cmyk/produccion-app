@@ -764,16 +764,22 @@
   function renderRecientes(){
     const cont = document.getElementById('recientes-list');
     const borradosPendientes = new Set(getPendientesBorrado());
-    const pendientesEnCurso = getPendientes().map(p => Object.assign({}, p.fields, { __pendiente: true, __localId: p.localId, __estado: p.estado || '', __errorMsg: p.errorMsg || '' }));
+    const pendientesEnCurso = getPendientes().map(p => Object.assign({}, p.fields, { __pendiente: true, __localId: p.localId, __estado: p.estado || '', __errorMsg: p.errorMsg || '' }))
+      .filter(c => c && c.lote)
+      .sort((a, b) => (Number(b.bb) || 0) - (Number(a.bb) || 0));
     // Los que ya están en cola para borrarse no se muestran más — aunque el
     // servidor todavía no confirmó el borrado, para el operario ya están
     // eliminados.
-    const delServidor = ULTIMO_LISTADO.filter(c => !borradosPendientes.has(c.id)).map(c => Object.assign({}, c, { __pendiente: false }));
-    const combinados = pendientesEnCurso.concat(delServidor);
-    const ordenados = combinados
+    const delServidor = ULTIMO_LISTADO.filter(c => !borradosPendientes.has(c.id)).map(c => Object.assign({}, c, { __pendiente: false }))
       .filter(c => c && c.lote)
-      .sort((a, b) => (Number(b.bb) || 0) - (Number(a.bb) || 0))
-      .slice(0, CANTIDAD_RECIENTES);
+      .sort((a, b) => (Number(b.bb) || 0) - (Number(a.bb) || 0));
+    // Los pendientes (sin subir todavía) se muestran SIEMPRE todos, sin
+    // límite — son justamente los que hay que poder vigilar mientras se
+    // sincronizan. Los que ya están subidos solo completan el resto de la
+    // lista hasta el tamaño habitual, para no alargarla cuando no hay
+    // nada pendiente.
+    const huecoParaServidor = Math.max(CANTIDAD_RECIENTES - pendientesEnCurso.length, 0);
+    const ordenados = pendientesEnCurso.concat(delServidor.slice(0, huecoParaServidor));
 
     if(!ordenados.length){
       cont.innerHTML = '<div class="recientes-empty">Todavía no hay bigbags cargados.</div>';
