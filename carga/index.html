@@ -1150,22 +1150,26 @@
   let flushEnCurso = false;
   async function sincronizarPendientes(silencioso){
     if(flushEnCurso) return;
-    const pendientes = getPendientes();
-    if(!pendientes.length) return;
+    const idsAIntentar = getPendientes().map(p => p.localId);
+    if(!idsAIntentar.length) return;
     flushEnCurso = true;
 
     let subieron = 0;
-    const restantes = [];
 
-    for(const item of pendientes){
+    for(const localId of idsAIntentar){
       if(!navigator.onLine){
         // Sin conexión real: no tiene sentido seguir intentando ahora: se
         // reintentan solos cuando vuelva la señal.
-        restantes.push(item);
-        continue;
+        break;
       }
+      const actuales = getPendientes();
+      const item = actuales.find(p => p.localId === localId);
+      if(!item) continue; // ya no está (se subió o se borró por otro lado)
+
+      let exito = false;
       try{
         await crearCargaRemota(item.fields);
+        exito = true;
         subieron++;
       }catch(ex){
         // Hay señal, pero este bigbag puntual falló (puede ser un rechazo
@@ -1175,16 +1179,28 @@
         // trabado no bloquea a todos los otros pendientes.
         item.estado = 'error';
         item.errorMsg = ex.message || 'Error desconocido';
-        restantes.push(item);
       }
+
+      // Se guarda y se refresca la pantalla ítem por ítem, no recién al
+      // final de toda la cola: con muchos pendientes (y hasta 45s de
+      // espera posible por cada uno) esperar al final dejaba la pantalla
+      // sin ningún cambio visible por varios minutos. Además, si algo
+      // interrumpe el proceso a mitad de camino, esto evita volver a
+      // subir (duplicar) un bigbag que ya se había guardado bien.
+      const despues = getPendientes();
+      const idx = despues.findIndex(p => p.localId === localId);
+      if(idx !== -1){
+        if(exito){ despues.splice(idx, 1); }
+        else { despues[idx] = item; }
+        setPendientes(despues);
+      }
+      renderRecientes();
+      actualizarBannerConexion();
     }
 
-    setPendientes(restantes);
     flushEnCurso = false;
-    if(subieron > 0){
-      actualizarBannerConexion();
-      renderRecientes();
-      if(!silencioso) showToast(subieron === 1 ? 'Se subió 1 bigbag pendiente' : `Se subieron ${subieron} bigbags pendientes`);
+    if(subieron > 0 && !silencioso){
+      showToast(subieron === 1 ? 'Se subió 1 bigbag pendiente' : `Se subieron ${subieron} bigbags pendientes`);
     }
   }
 
