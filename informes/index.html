@@ -1716,16 +1716,19 @@
     // a la estimación. Un lote sin cierre Y sin estimación de producto
     // terminado todavía no aporta nada a este total (no hay forma de
     // saberlo sin ese dato cargado).
-    let totalMateriaPrima = 0, totalTerminado = 0, lotesConMateriaPrima = 0, lotesPendientesCierre = 0;
+    let totalMateriaPrima = 0, totalTerminado = 0, lotesConMateriaPrima = 0, lotesSinTerminadoCargado = 0;
     grupos.forEach(g=>{
       const mp = materiaPrimaDeLote_(g.lote);
       if(mp != null){ totalMateriaPrima += mp; lotesConMateriaPrima++; }
       if(g.cierre){
         totalTerminado += g.cierre.productoTerminadoAjustado;
       } else {
-        lotesPendientesCierre++;
         const est = estimacionPorLote_(g.lote);
-        if(est && est.volProductoTerminado) totalTerminado += est.volProductoTerminado;
+        if(est && est.volProductoTerminado){
+          totalTerminado += est.volProductoTerminado;
+        } else {
+          lotesSinTerminadoCargado++;
+        }
       }
     });
     const rendimiento = totalMateriaPrima > 0 ? (totalTerminado/totalMateriaPrima)*100 : null;
@@ -1748,7 +1751,7 @@
     const faltantesMP = grupos.length - lotesConMateriaPrima;
     const partesNota = [];
     if(faltantesMP > 0) partesNota.push(`${faltantesMP} lote${faltantesMP===1?'':'s'} todavía sin peso de materia prima cargado (no se cuenta${faltantesMP===1?'':'n'} en ese total hasta que se cargue desde Cierre de Lotes)`);
-    if(lotesPendientesCierre > 0) partesNota.push(`${lotesPendientesCierre} lote${lotesPendientesCierre===1?'':'s'} todavía sin cerrar (su producto terminado se suma recién al cerrar el lote)`);
+    if(lotesSinTerminadoCargado > 0) partesNota.push(`${lotesSinTerminadoCargado} lote${lotesSinTerminadoCargado===1?'':'s'} todavía sin peso de producto terminado cargado (no se cuenta${lotesSinTerminadoCargado===1?'':'n'} en ese total hasta que se cargue desde Cierre de Lotes)`);
     nota.textContent = partesNota.length > 0
       ? partesNota.join('. ') + '. Stock y Embarcado se van a poder calcular cuando la app lleve despachos por cliente.'
       : 'Stock y Embarcado se van a poder calcular cuando la app lleve despachos por cliente.';
