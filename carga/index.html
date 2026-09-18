@@ -132,7 +132,8 @@
   .reciente-bottom{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:11.5px;color:var(--text-muted);margin-top:1px;}
   .reciente-item.pendiente{border-color:#8a6300;background:var(--warning-bg);}
   .reciente-item.pendiente .reciente-bb{background:var(--gold-bg);color:var(--series-1-ink);}
-  .reciente-pend-tag{flex-shrink:0;font-size:10px;font-weight:700;color:#8a6300;text-transform:uppercase;letter-spacing:.03em;}
+  .reciente-pend-tag{flex-shrink:0;font-size:10px;font-weight:700;color:#8a6300;text-transform:uppercase;letter-spacing:.03em;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .reciente-pend-tag.error{color:var(--critical);}
   .recientes-empty{font-size:12.5px;color:var(--text-muted);padding:4px 0;}
   .reciente-delete{flex-shrink:0;width:30px;height:30px;border-radius:50%;border:none;background:transparent;color:var(--text-muted);font-size:15px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background-color .15s ease,color .15s ease;}
   .reciente-delete:hover{background:var(--critical-bg);color:var(--critical);}
@@ -653,7 +654,7 @@
   function renderRecientes(){
     const cont = document.getElementById('recientes-list');
     const borradosPendientes = new Set(getPendientesBorrado());
-    const pendientesEnCurso = getPendientes().map(p => Object.assign({}, p.fields, { __pendiente: true, __localId: p.localId }));
+    const pendientesEnCurso = getPendientes().map(p => Object.assign({}, p.fields, { __pendiente: true, __localId: p.localId, __estado: p.estado || '', __errorMsg: p.errorMsg || '' }));
     // Los que ya están en cola para borrarse no se muestran más — aunque el
     // servidor todavía no confirmó el borrado, para el operario ya están
     // eliminados.
@@ -674,7 +675,10 @@
       const horaTxt = c.hora || '—';
       const fechaTxt = c.fecha ? fechaVisualCorta_(c.fecha) : '';
       const pend = c.__pendiente ? ' pendiente' : '';
-      const tag = c.__pendiente ? '<span class="reciente-pend-tag">Sin subir</span>' : '';
+      const tieneError = c.__pendiente && c.__estado === 'error';
+      const tag = tieneError
+        ? `<span class="reciente-pend-tag error" title="${escHtml_(c.__errorMsg)}">Error: ${escHtml_((c.__errorMsg||'').slice(0,40))}</span>`
+        : (c.__pendiente ? '<span class="reciente-pend-tag">Sin subir</span>' : '');
       const dataAttrs = c.__pendiente
         ? `data-localid="${escHtml_(c.__localId)}"`
         : `data-id="${escHtml_(c.id)}"`;
@@ -1123,9 +1127,17 @@
     const borrados = getPendientesBorrado();
     const ediciones = getPendientesEdicion();
     const totalPend = pendientes.length + borrados.length + ediciones.length;
+    const conError = pendientes.filter(p => p.estado === 'error');
     if(!navigator.onLine){
       banner.className = 'conn-banner offline';
       banner.innerHTML = `<span class="dot"></span> Sin conexión${totalPend ? ' · ' + totalPend + ' cambio(s) sin subir todavía' : ' — los bigbags que cargues se guardan en el teléfono'}`;
+      banner.classList.remove('hidden');
+    } else if(conError.length){
+      // No es un tema de conexión (hay señal): el servidor contestó pero
+      // rechazó guardar estos bigbags por algún motivo puntual — reintentar
+      // solo, sin corregir el dato, no los va a destrabar.
+      banner.className = 'conn-banner offline';
+      banner.innerHTML = `<span class="dot"></span> ${conError.length} bigbag(s) con error, no se pudieron guardar: ${escHtml_(conError[0].errorMsg || 'error desconocido')} — mirá la lista de abajo`;
       banner.classList.remove('hidden');
     } else if(totalPend){
       banner.className = 'conn-banner pending';
