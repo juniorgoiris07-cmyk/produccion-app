@@ -175,6 +175,8 @@
         </div>
         <button type="submit" class="submit-btn" id="setup-btn">Guardar y continuar</button>
       </form>
+      <button type="button" id="diag-btn" style="margin-top:14px;background:none;border:none;color:#666;text-decoration:underline;font-size:13px;cursor:pointer;padding:6px 0;">Probar conexión (diagnóstico)</button>
+      <pre id="diag-result" class="hidden" style="white-space:pre-wrap;word-break:break-word;background:#f4f4f4;border:1px solid #ddd;border-radius:8px;padding:10px;font-size:12px;margin-top:8px;max-height:260px;overflow:auto;"></pre>
     </div>
   </div>
 
@@ -526,6 +528,64 @@
     cargarSugerencias();
     actualizarBannerConexion();
   }
+
+  // ---------- diagnóstico manual: para cuando algo falla en un teléfono
+  // puntual y no sabemos por qué. Corre las mismas llamadas que usa la app
+  // de verdad (fetch, no una navegación de página) y muestra el motivo
+  // exacto en pantalla para poder copiarlo/leerlo, sin necesitar consola.
+  async function ejecutarDiagnostico_(){
+    const lineas = [];
+    lineas.push('Hora del dispositivo: ' + new Date().toString());
+    lineas.push('¿navigator.onLine?: ' + navigator.onLine);
+    lineas.push('Navegador: ' + navigator.userAgent);
+    const url = (document.getElementById('s-url').value || getWebAppUrl() || '').trim();
+    lineas.push('URL a probar: ' + (url || '(vacía)'));
+    lineas.push('');
+
+    if(url){
+      try{
+        const t0 = performance.now();
+        const res = await fetch(url, { method: 'GET' });
+        const t1 = performance.now();
+        let cuerpo = '';
+        try{ cuerpo = (await res.text()).slice(0, 150); }catch(e2){}
+        lineas.push(`Prueba 1 — pedido a la app (igual que usa la app): OK, status ${res.status}, ${Math.round(t1-t0)}ms`);
+        lineas.push('Respuesta (primeros caracteres): ' + cuerpo);
+      }catch(ex){
+        lineas.push(`Prueba 1 — pedido a la app (igual que usa la app): FALLÓ — ${ex.name}: ${ex.message}`);
+      }
+    } else {
+      lineas.push('Prueba 1: no se probó porque no hay URL cargada.');
+    }
+
+    lineas.push('');
+    try{
+      const t0 = performance.now();
+      await fetch('https://www.google.com/generate_204', { mode: 'no-cors' });
+      const t1 = performance.now();
+      lineas.push(`Prueba 2 — alcance general a Google (sin pasar por la app): OK, ${Math.round(t1-t0)}ms`);
+    }catch(ex){
+      lineas.push(`Prueba 2 — alcance general a Google (sin pasar por la app): FALLÓ — ${ex.name}: ${ex.message}`);
+    }
+
+    return lineas.join('\n');
+  }
+
+  document.getElementById('diag-btn').addEventListener('click', async function(){
+    const btn = this;
+    const out = document.getElementById('diag-result');
+    btn.disabled = true;
+    const textoOriginal = btn.textContent;
+    btn.textContent = 'Probando...';
+    out.classList.remove('hidden');
+    out.textContent = 'Ejecutando pruebas...';
+    try{
+      out.textContent = await ejecutarDiagnostico_();
+    } finally {
+      btn.disabled = false;
+      btn.textContent = textoOriginal;
+    }
+  });
 
   function resetWebAppUrl(){
     mostrarPantalla('setup-screen');
