@@ -809,12 +809,12 @@
     return data.estimaciones || [];
   }
 
-  async function guardarEstimacionMateriaPrimaRemoto(lote, volMateriaPrima, usuario){
+  async function guardarEstimacionMateriaPrimaRemoto(lote, volMateriaPrima, volProductoTerminado, usuario){
     const url = getWebAppUrl();
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'guardarEstimacionMateriaPrima', lote, volMateriaPrima, usuario })
+      body: JSON.stringify({ action: 'guardarEstimacionMateriaPrima', lote, volMateriaPrima, volProductoTerminado, usuario })
     });
     if(!res.ok) throw new Error(`Error ${res.status}`);
     const data = await res.json();
@@ -1708,9 +1708,14 @@
     const grupos = agruparPorLotes(datos).filter(g => String(g.lote||'').trim() !== LOTE_EXCLUIDO_DE_RESUMEN);
 
     // Nota importante: el producto terminado (y por lo tanto el rendimiento)
-    // solo se suma para lotes YA CERRADOS, igual que la app de referencia —
-    // el conteo de bigbags de un lote todavía en proceso no es un peso real
-    // de producto terminado, así que no debe mezclarse en este total.
+    // NUNCA se estima por conteo de bigbags acá — un lote todavía en
+    // proceso ya se va embolsando y pesando de a poco (igual que la app de
+    // referencia), así que ese peso real tiene que venir cargado a mano
+    // (vía "Cierre de Lotes") como estimación del lote abierto. Recién
+    // cuando el lote se cierra de verdad, el peso real de cierre reemplaza
+    // a la estimación. Un lote sin cierre Y sin estimación de producto
+    // terminado todavía no aporta nada a este total (no hay forma de
+    // saberlo sin ese dato cargado).
     let totalMateriaPrima = 0, totalTerminado = 0, lotesConMateriaPrima = 0, lotesPendientesCierre = 0;
     grupos.forEach(g=>{
       const mp = materiaPrimaDeLote_(g.lote);
@@ -1719,6 +1724,8 @@
         totalTerminado += g.cierre.productoTerminadoAjustado;
       } else {
         lotesPendientesCierre++;
+        const est = estimacionPorLote_(g.lote);
+        if(est && est.volProductoTerminado) totalTerminado += est.volProductoTerminado;
       }
     });
     const rendimiento = totalMateriaPrima > 0 ? (totalTerminado/totalMateriaPrima)*100 : null;
@@ -2237,10 +2244,12 @@
       `<label class="obs-check"><input type="checkbox" value="${op}" ${obsGuardadas.includes(op)?'checked':''}> ${op}</label>`).join('');
     const obsOtras = c ? obsGuardadas.filter(s=>s && !OBSERVACION_CIERRE_OPCIONES.includes(s)).join(', ') : '';
 
-    // El volumen de Producto Terminado se sugiere con el estimado de
-    // siempre (bigbags × 1000kg) para tener un punto de partida, pero
-    // queda editable: el valor real de báscula puede (y va a) ser distinto.
-    const volTerminadoSugerido = c ? c.volProductoTerminado : (g.bbs.length * 1000);
+    // El volumen de Producto Terminado se sugiere con el último peso real
+    // ya guardado como estimación del lote abierto (si hay) o, si todavía
+    // no se cargó nada, con el estimado de siempre (bigbags × 1000kg) como
+    // punto de partida — queda editable en los dos casos.
+    const volTerminadoSugerido = c ? c.volProductoTerminado
+      : (estimacionMP && estimacionMP.volProductoTerminado ? estimacionMP.volProductoTerminado : (g.bbs.length * 1000));
 
     cont.innerHTML = `
       <button type="button" class="calidad-volver" id="cierre-volver-btn">
@@ -2271,11 +2280,11 @@
         <div class="field">
           <label>Vol. Materia Prima (kg) <span class="hint">peso del silo bolsa antes de procesar</span></label>
           <input type="number" id="c-vol-materia-prima" step="0.01" min="0" inputmode="decimal" value="${c && c.volMateriaPrima!=null ? c.volMateriaPrima : (estimacionMP && estimacionMP.volMateriaPrima!=null ? estimacionMP.volMateriaPrima : '')}">
-          ${!c ? '<span class="hint">Se puede cargar este peso apenas se pesa el silo bolsa, sin esperar a cerrar el lote — usá el botón de abajo.</span>' : ''}
         </div>
         <div class="field">
           <label>Vol. Producto Terminado (kg) <span class="hint">peso real ya procesado y embolsado</span></label>
           <input type="number" id="c-vol-producto-terminado" step="0.01" min="0" inputmode="decimal" value="${volTerminadoSugerido!=null ? volTerminadoSugerido : ''}">
+          ${!c ? '<span class="hint">Los dos pesos de arriba se pueden ir cargando (y corrigiendo) a medida que se pesan, sin esperar a cerrar el lote — usá el botón de abajo.</span>' : ''}
         </div>
         <div class="field">
           <label>Ajuste de Empaquetado (kg) <span class="hint">opcional, +/-</span></label>
@@ -2292,7 +2301,7 @@
         </div>
 
         ${esNuevo ? `<div class="error-msg" id="mp-error"></div>
-        <button type="button" class="submit-btn" id="mp-guardar-btn" style="background:var(--surface-2);color:var(--text-primary);border:1.5px solid var(--series-1);">${estimacionMP ? 'Actualizar Materia Prima (sin cerrar)' : 'Guardar Materia Prima (sin cerrar)'}</button>` : ''}
+        <button type="button" class="submit-btn" id="mp-guardar-btn" style="background:var(--surface-2);color:var(--text-primary);border:1.5px solid var(--series-1);">${estimacionMP ? 'Actualizar pesos (sin cerrar el lote)' : 'Guardar pesos (sin cerrar el lote)'}</button>` : ''}
         <div class="error-msg" id="c-error"></div>
         <button type="button" class="submit-btn" id="c-guardar-btn">${esNuevo ? 'Cerrar Lote' : 'Guardar cambios'}</button>
         ${!esNuevo ? '<button type="button" class="submit-btn" id="c-eliminar-btn" style="background:var(--critical);margin-top:8px;">Eliminar cierre (reabrir lote)</button>' : ''}
@@ -2307,10 +2316,11 @@
     if(mpBtn) mpBtn.addEventListener('click', ()=> guardarSoloMateriaPrima_(g, nombreUsuario));
   }
 
-  // Guarda (o actualiza) el peso de materia prima de un lote SIN cerrarlo —
-  // usa el mismo campo del form de arriba. Sirve para cuando se pesa el
-  // silo bolsa mucho antes de que el lote termine de procesarse, así el
-  // total de "Resumen" no tiene que esperar al cierre para estar al día.
+  // Guarda (o actualiza) el peso de materia prima Y de producto terminado
+  // de un lote SIN cerrarlo — usa los mismos campos del form de arriba.
+  // Sirve para cuando se pesa el silo bolsa (y/o lo ya embolsado) mucho
+  // antes de que el lote termine de procesarse, así el total de "Resumen"
+  // no tiene que esperar al cierre para estar al día.
   async function guardarSoloMateriaPrima_(g, nombreUsuario){
     const err = document.getElementById('mp-error');
     err.style.display = 'none';
@@ -2325,22 +2335,24 @@
       err.style.display = 'block';
       return;
     }
+    const volProductoTerminado = document.getElementById('c-vol-producto-terminado').value.trim();
     const btn = document.getElementById('mp-guardar-btn');
     btn.disabled = true; btn.textContent = 'Guardando...';
     try{
-      await guardarEstimacionMateriaPrimaRemoto(g.lote, volMateriaPrima, nombreUsuario);
+      await guardarEstimacionMateriaPrimaRemoto(g.lote, volMateriaPrima, volProductoTerminado || 0, nombreUsuario);
       const existente = estimacionPorLote_(g.lote);
       if(existente){
         existente.volMateriaPrima = Number(volMateriaPrima)||0;
+        existente.volProductoTerminado = Number(volProductoTerminado)||0;
       } else {
-        TODAS_LAS_ESTIMACIONES.push({ lote: g.lote, volMateriaPrima: Number(volMateriaPrima)||0, usuario: nombreUsuario });
+        TODAS_LAS_ESTIMACIONES.push({ lote: g.lote, volMateriaPrima: Number(volMateriaPrima)||0, volProductoTerminado: Number(volProductoTerminado)||0, usuario: nombreUsuario });
       }
-      showToast('Materia prima guardada — el lote sigue abierto');
+      showToast('Pesos guardados — el lote sigue abierto');
       renderLotesGrid(TODAS_LAS_CARGAS);
     }catch(ex){
       err.textContent = 'No se pudo guardar: ' + ex.message;
       err.style.display = 'block';
-      btn.disabled = false; btn.textContent = 'Guardar Materia Prima (sin cerrar)';
+      btn.disabled = false; btn.textContent = 'Guardar pesos (sin cerrar el lote)';
     }
   }
 
