@@ -862,11 +862,13 @@
   }
 
   // ---------- Ventas (Comercial) — llamadas al backend Comercial ----------
-  // Ventas vive en el mismo backend de Apps Script que el login/roles (no en
-  // el de Producción), así que estas llamadas usan COMERCIAL_LOGIN_URL en
-  // vez de getWebAppUrl().
+  // Ventas vive en el mismo backend de Apps Script que Producción (la hoja
+  // "Ventas" se creó ahí), así que estas llamadas usan getWebAppUrl() como
+  // el resto de la app. (COMERCIAL_LOGIN_URL sigue usándose solo para el
+  // login propio de Comercial y la subida de contrato/documentos, que
+  // todavía no están conectados a un backend real.)
   async function obtenerVentasRemoto(){
-    const res = await fetch(COMERCIAL_LOGIN_URL + '?action=ventas');
+    const res = await fetch(getWebAppUrl() + '?action=ventas');
     if(!res.ok) throw new Error(`Error ${res.status}`);
     const data = await res.json();
     if(!data.ok) throw new Error(data.error || 'No se pudieron obtener las ventas.');
@@ -874,7 +876,7 @@
   }
 
   async function crearVentaRemoto(fields){
-    const res = await fetch(COMERCIAL_LOGIN_URL, {
+    const res = await fetch(getWebAppUrl(), {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(Object.assign({ action: 'crearVenta' }, fields))
@@ -886,7 +888,7 @@
   }
 
   async function actualizarVentaRemoto(id, fields){
-    const res = await fetch(COMERCIAL_LOGIN_URL, {
+    const res = await fetch(getWebAppUrl(), {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(Object.assign({ action: 'actualizarVenta', id }, fields))
@@ -898,7 +900,7 @@
   }
 
   async function eliminarVentaRemoto(id){
-    const res = await fetch(COMERCIAL_LOGIN_URL, {
+    const res = await fetch(getWebAppUrl(), {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action: 'eliminarVenta', id })
@@ -1092,8 +1094,17 @@
         // Igual que arriba: si todavía no existe la hoja "EstimacionesLote"
         // (backend viejo) no se pierde nada.
       }
+      try{
+        // Se trae acá también (no solo cuando se visita Comercial) para que
+        // el Resumen pueda calcular En Stock / Embarcado apenas se abre la
+        // app, sin depender de que alguien haya entrado a Comercial antes.
+        TODAS_LAS_VENTAS = await obtenerVentasRemoto();
+      }catch(ex5){
+        // Igual que arriba: si todavía no hay ventas cargadas o falla la
+        // consulta, el Resumen simplemente muestra Stock/Embarcado en 0.
+      }
       ULTIMA_SYNC_TS = new Date();
-      localStorage.setItem(DATA_CACHE_KEY, JSON.stringify({ cargas: TODAS_LAS_CARGAS, asignaciones: TODAS_LAS_ASIGNACIONES, cierres: TODOS_LOS_CIERRES, estimaciones: TODAS_LAS_ESTIMACIONES, ts: ULTIMA_SYNC_TS.toISOString() }));
+      localStorage.setItem(DATA_CACHE_KEY, JSON.stringify({ cargas: TODAS_LAS_CARGAS, asignaciones: TODAS_LAS_ASIGNACIONES, cierres: TODOS_LOS_CIERRES, estimaciones: TODAS_LAS_ESTIMACIONES, ventas: TODAS_LAS_VENTAS, ts: ULTIMA_SYNC_TS.toISOString() }));
       // Por si quedó alguna edición sin subir de una sesión offline anterior,
       // se refleja en pantalla aunque los datos frescos todavía no la tengan.
       aplicarEdicionesPendientesLocal();
@@ -1108,6 +1119,7 @@
         TODAS_LAS_ASIGNACIONES = cache.asignaciones || [];
         TODOS_LOS_CIERRES = cache.cierres || [];
         TODAS_LAS_ESTIMACIONES = cache.estimaciones || [];
+        TODAS_LAS_VENTAS = cache.ventas || [];
         ULTIMA_SYNC_TS = cache.ts ? new Date(cache.ts) : null;
         aplicarEdicionesPendientesLocal();
         renderLotesGrid(TODAS_LAS_CARGAS);
@@ -1696,9 +1708,10 @@
   // ---------- vista "Resumen" ----------
   // Cuadro general de planta con los mismos números que muestra la app de
   // referencia (Procesamiento de Chía): lotes cargados, materia prima
-  // procesada, producto terminado, rendimiento promedio. En Stock y
-  // Embarcado quedan en "—" hasta que la app lleve despachos por cliente
-  // (todavía no existe esa función acá).
+  // procesada, producto terminado, rendimiento promedio, En Stock y
+  // Embarcado. Estos dos últimos se calculan a partir de las ventas
+  // cargadas en Comercial (ver TODAS_LAS_VENTAS): Pendiente/Confirmada
+  // suma a En Stock, Entregada suma a Embarcado, Cancelada no cuenta.
   const LOTE_EXCLUIDO_DE_RESUMEN = 'General vierci'; // bolsón genérico, no es un lote de proceso real
 
   function renderVistaResumenGeneral(datos){
@@ -1733,13 +1746,28 @@
     });
     const rendimiento = totalMateriaPrima > 0 ? (totalTerminado/totalMateriaPrima)*100 : null;
 
+    // En Stock / Embarcado salen de "Ventas" (sección Comercial), igual que
+    // en la app de referencia: cada venta tiene un Estado, y el Toneladas
+    // de esa venta se cuenta en un solo balde según ese estado — no se
+    // calculan restando del Producto Terminado. Una venta "Cancelada" no
+    // cuenta en ningún lado; y producto terminado que todavía no tiene
+    // ninguna venta cargada tampoco cuenta en ninguno de los dos todavía
+    // (queda "sin asignar", igual que en la referencia).
+    let enStockKg = 0, embarcadoKg = 0;
+    TODAS_LAS_VENTAS.forEach(v=>{
+      const kg = (Number(v.toneladas)||0) * 1000;
+      const estado = v.estado || 'Pendiente';
+      if(estado === 'Entregada') embarcadoKg += kg;
+      else if(estado === 'Pendiente' || estado === 'Confirmada') enStockKg += kg;
+    });
+
     const tiles = [
       { label: 'Lotes cargados', valor: String(grupos.length), unidad: '' },
       { label: 'Vol. Materia Prima', valor: formatKg_(totalMateriaPrima), unidad: 'kg' },
       { label: 'Vol. Producto Terminado', valor: formatKg_(totalTerminado), unidad: 'kg' },
       { label: 'Rendimiento promedio', valor: rendimiento!=null ? rendimiento.toFixed(1)+'%' : '—', unidad: '' },
-      { label: 'En Stock', valor: '—', unidad: 'próximamente' },
-      { label: 'Embarcado', valor: '—', unidad: 'próximamente' }
+      { label: 'En Stock', valor: formatKg_(enStockKg), unidad: 'kg' },
+      { label: 'Embarcado', valor: formatKg_(embarcadoKg), unidad: 'kg' }
     ];
     cont.innerHTML = tiles.map((t,i) => `
       <div class="resumen-tile${i===0?' destacado':''}">
@@ -1752,9 +1780,10 @@
     const partesNota = [];
     if(faltantesMP > 0) partesNota.push(`${faltantesMP} lote${faltantesMP===1?'':'s'} todavía sin peso de materia prima cargado (no se cuenta${faltantesMP===1?'':'n'} en ese total hasta que se cargue desde Cierre de Lotes)`);
     if(lotesSinTerminadoCargado > 0) partesNota.push(`${lotesSinTerminadoCargado} lote${lotesSinTerminadoCargado===1?'':'s'} todavía sin peso de producto terminado cargado (no se cuenta${lotesSinTerminadoCargado===1?'':'n'} en ese total hasta que se cargue desde Cierre de Lotes)`);
+    if(!TODAS_LAS_VENTAS.length) partesNota.push('En Stock y Embarcado todavía están en 0 porque no hay ninguna venta cargada en Comercial');
     nota.textContent = partesNota.length > 0
-      ? partesNota.join('. ') + '. Stock y Embarcado se van a poder calcular cuando la app lleve despachos por cliente.'
-      : 'Stock y Embarcado se van a poder calcular cuando la app lleve despachos por cliente.';
+      ? partesNota.join('. ') + '.'
+      : 'En Stock y Embarcado salen de las ventas cargadas en Comercial (Pendiente/Confirmada suma a Stock, Entregada suma a Embarcado).';
   }
 
   // ---------- render: dispatcher de las 3 vistas ----------
